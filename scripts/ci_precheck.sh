@@ -66,6 +66,51 @@ print(f"XML valid; {len(projects)} device projects; paths unique; all revisions 
 PY
 
 echo
+echo "===== Shallow clone of PixelOS manifest for path-collision checks ====="
+git clone --depth=1 --single-branch --branch seventeen \
+  https://github.com/PixelOS-AOSP/android_manifest.git "$TMP_ROOT/pixelos-manifest"
+python3 - "$TMP_ROOT/zephyr.xml" "$TMP_ROOT/pixelos-manifest" <<'PY'
+import sys
+from pathlib import Path
+import xml.etree.ElementTree as ET
+
+local_root = ET.parse(sys.argv[1]).getroot()
+manifest_root = Path(sys.argv[2])
+active = {}
+
+def apply_manifest(file_path):
+    root = ET.parse(file_path).getroot()
+    for node in root:
+        if node.tag == "include":
+            included = manifest_root / node.attrib["name"]
+            if not included.is_file():
+                raise SystemExit(f"Included manifest does not exist: {included}")
+            apply_manifest(included)
+        elif node.tag == "remove-project":
+            name = node.attrib.get("name")
+            path = node.attrib.get("path")
+            to_remove = [
+                p for p, project in active.items()
+                if (name and project.attrib.get("name") == name)
+                or (path and p == path)
+            ]
+            for p in to_remove:
+                del active[p]
+        elif node.tag == "project":
+            path = node.attrib.get("path", node.attrib.get("name"))
+            if path:
+                active[path] = node
+
+apply_manifest(manifest_root / "default.xml")
+local_paths = {p.attrib["path"] for p in local_root.findall("project")}
+collisions = sorted(local_paths & set(active))
+if collisions:
+    details = {p: active[p].attrib.get("name") for p in collisions}
+    raise SystemExit(f"Device projects collide with active PixelOS manifest paths: {details}")
+print(f"No path collisions against active PixelOS seventeen manifest ({len(active)} upstream project paths).")
+PY
+
+echo
 echo "===== Shallow clone of device tree's advertised default branch ====="
 DEVICE_URL="https://github.com/oplus-mt6895/android_device_oplus_zephyr.git"
 DEVICE_BRANCH="$(git ls-remote --symref "$DEVICE_URL" HEAD | awk '$1 == "ref:" && $3 == "HEAD" { sub("^refs/heads/", "", $2); print $2; exit }')"
