@@ -18,15 +18,23 @@ The organization profile README calls the Realme GT Neo 3 `lisaa`, while the lin
 
 The upstream product makefile currently carries an OnePlus 10R build fingerprint despite the Realme model fields. The integration keeps upstream values rather than inventing a fingerprint; verify/fix product identity values before treating a build as ready to flash.
 
-## Start from Crave Devspace
+## First Crave run: sync and preflight only
 
 From the Devspace directory for project 82:
+
+```bash
+crave run --projectID 82 --no-patch -- "curl -fLsS https://raw.githubusercontent.com/asxcaz/pixelos_seventeen-zephyr/main/build.sh | PREPARE_ONLY=1 bash -s --"
+```
+
+**This first run still downloads/syncs the full Android source tree** into `pixelos-seventeen-zephyr-src/`, then prepares the device tree and runs `breakfast zephyr`. It exits before starting the actual ROM compilation. Because this intentionally keeps the Crave project's pre-populated root source untouched, allow for additional disk usage.
+
+Review the sync log and lunch result before submitting the full build:
 
 ```bash
 crave run --projectID 82 --no-patch -- "curl -fLsS https://raw.githubusercontent.com/asxcaz/pixelos_seventeen-zephyr/main/build.sh | bash -s --"
 ```
 
-The first run initializes and syncs the independent PixelOS source tree, applies the device integration steps, runs `breakfast zephyr`, then `m pixelos`.
+The second command runs `m pixelos`.
 
 Do not add `--clean` casually: Crave's clean workspace is based on the configured project snapshot, not an empty directory, and it discards incremental work from previous jobs.
 
@@ -35,10 +43,10 @@ Do not add `--clean` casually: Crave's clean workspace is based on the configure
 Normal reruns reuse the synchronized source tree and output directory to support incremental builds. To deliberately refresh sources, submit:
 
 ```bash
-crave run --projectID 82 --no-patch -- "curl -fLsS https://raw.githubusercontent.com/asxcaz/pixelos_seventeen-zephyr/main/build.sh | SYNC_SOURCE=1 bash -s --"
+crave run --projectID 82 --no-patch -- "curl -fLsS https://raw.githubusercontent.com/asxcaz/pixelos_seventeen-zephyr/main/build.sh | SYNC_SOURCE=1 PREPARE_ONLY=1 bash -s --"
 ```
 
-This resets only build-generated device-tree edits before syncing. Do not use this if you have made manual edits inside `pixelos-seventeen-zephyr-src/` that you want to preserve.
+This resets only generated device-tree edits before syncing and stops before compilation. Do not use this if you have made manual edits inside `pixelos-seventeen-zephyr-src/` that you want to preserve.
 
 ## Device tree integration
 
@@ -52,6 +60,6 @@ The device tree points at the prebuilt kernel-output directory `device/oplus/zep
 
 ## Notes
 
-- Output is expected under `out/target/product/zephyr/`; the script prints available ZIPs and images at the end.
+- Output is expected under `out/target/product/zephyr/`; the script prints available ROM ZIPs and images at the end.
 - This is an initial device integration build setup, not a claim that the ROM has already compiled or booted successfully.
 - Before flashing a first build, verify the exact handset model, bootloader state, firmware requirements, product fingerprint, and backup/recovery route.
