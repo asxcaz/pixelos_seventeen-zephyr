@@ -42,12 +42,19 @@ apply_patch_commit() {
   git -C "$repo_dir" cherry-pick -x "$sha"
 }
 
-# Apply the device tree's published MediaTek patches once. These match the
-# upstream vendorsetup.sh references, but this script checks for prior application.
-apply_patch_commit "packages/apps/Aperture" "https://github.com/Adarsh0127-Elite/android_packages_apps_Aperture.git" "9509277efc852ad8bdcce204e0d9cfe104b6d190" "Aperture MediaTek 60fps patch"
-apply_patch_commit "frameworks/native" "https://github.com/oplus-mt6895/android_frameworks_native.git" "5ae7b13cc9e7359261d15ab185ee4aaeb512f754" "MediaTek GED-KPI patch"
-apply_patch_commit "frameworks/native" "https://github.com/oplus-mt6895/android_frameworks_native.git" "31f62caf1160bb8460eb7f7c66e279fdb51867d6" "MediaTek UDFPS dithering patch"
-apply_patch_commit "frameworks/base" "https://github.com/oplus-mt6895/android_frameworks_base.git" "8fdf7742a1adabcb5c79fd23dcf2039fcda6ce3b" "MediaTek UDFPS SystemUI patch"
+# These cherry-picks are referenced by the device tree's original vendorsetup.sh,
+# but they originate from older LineageOS branches and may need porting to
+# PixelOS seventeen / Android 17. Keep them opt-in instead of breaking the
+# first source sync/build by applying potentially stale patches unconditionally.
+if [[ "${APPLY_LEGACY_DEVICE_PATCHES:-0}" == "1" ]]; then
+  apply_patch_commit "packages/apps/Aperture" "https://github.com/Adarsh0127-Elite/android_packages_apps_Aperture.git" "9509277efc852ad8bdcce204e0d9cfe104b6d190" "Aperture MediaTek 60fps patch"
+  apply_patch_commit "frameworks/native" "https://github.com/oplus-mt6895/android_frameworks_native.git" "5ae7b13cc9e7359261d15ab185ee4aaeb512f754" "MediaTek GED-KPI patch"
+  apply_patch_commit "frameworks/native" "https://github.com/oplus-mt6895/android_frameworks_native.git" "31f62caf1160bb8460eb7f7c66e279fdb51867d6" "MediaTek UDFPS dithering patch"
+  apply_patch_commit "frameworks/base" "https://github.com/oplus-mt6895/android_frameworks_base.git" "8fdf7742a1adabcb5c79fd23dcf2039fcda6ce3b" "MediaTek UDFPS SystemUI patch"
+else
+  echo "Skipping legacy MediaTek framework cherry-picks for the first PixelOS seventeen build."
+  echo "Set APPLY_LEGACY_DEVICE_PATCHES=1 only after reviewing/porting them for Android 17."
+fi
 
 # PixelOS product config: preserve the upstream device variables, but switch
 # the common product include and product name to the PixelOS custom namespace.
@@ -71,12 +78,13 @@ PRODUCT_MAKEFILES := \
     $(LOCAL_DIR)/lineage_zephyr.mk
 EOF
 
-# The original vendorsetup.sh clones dependencies and cherry-picks the same
-# patches as above every time build/envsetup.sh is sourced. They are now handled
-# idempotently here, so make envsetup side-effect-free.
+# The original vendorsetup.sh clones dependencies and cherry-picks legacy
+# patches whenever build/envsetup.sh is sourced. Required repos are now part
+# of our local manifest, and any legacy patch attempts are handled explicitly
+# above, so make envsetup side-effect-free.
 cat > "$DEVICE_DIR/vendorsetup.sh" <<'EOF'
 #!/usr/bin/env bash
-# PixelOS integration: dependency and patch setup is handled by the project script.
+# PixelOS integration: source setup is handled by the project build scripts.
 :
 EOF
 chmod +x "$DEVICE_DIR/vendorsetup.sh"
