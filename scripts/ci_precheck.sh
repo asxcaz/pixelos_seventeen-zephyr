@@ -14,14 +14,8 @@ trap cleanup EXIT
 
 cd "$REPO_ROOT"
 
-echo "===== Runner resources (before tests) ====="
-df -hT
-df -ih
-free -h || true
-printf 'CPUs: '; nproc
-for path in /usr/local/lib/android/sdk /opt/hostedtoolcache /usr/share/dotnet /usr/local/share/boost /usr/local/share/powershell; do
-  if [[ -d "$path" ]]; then du -sh "$path" 2>/dev/null || true; fi
-done
+echo "===== Disk at precheck start ====="
+df -hT "${GITHUB_WORKSPACE:-$REPO_ROOT}" 2>/dev/null || df -hT
 
 echo
 echo "===== Bash syntax ====="
