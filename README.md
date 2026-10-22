@@ -42,9 +42,9 @@ This resets only build-generated device-tree edits before syncing. Do not use th
 
 ## Device tree integration
 
-The upstream device tree is LineageOS-shaped. The prepare script derives `custom_zephyr.mk` from `lineage_zephyr.mk`, changes the common product include to PixelOS's `vendor/custom/config/common_full_phone.mk`, adds the product to `AndroidProducts.mk`, and replaces the tree's side-effectful `vendorsetup.sh` with a no-op after applying its listed vendor/framework patches explicitly and idempotently.
+The upstream device tree is LineageOS-shaped. The prepare script derives `custom_zephyr.mk` from `lineage_zephyr.mk`, changes the common product include to PixelOS's `vendor/custom/config/common_full_phone.mk`, adds the product to `AndroidProducts.mk`, and replaces the tree's side-effectful `vendorsetup.sh` with a no-op. The MediaTek IMS dependency is declared in the local manifest so envsetup does not need to clone it.
 
-Those patches can still conflict with PixelOS seventeen's Android 17 baseline. If they do, the script stops and leaves the failing cherry-pick visible in the logs rather than skipping it silently.
+The device tree also lists several MediaTek framework/Aperture cherry-picks from older LineageOS branches. They are **not applied by default** because PixelOS seventeen is Android 17 and some target-file contexts differ. After a first build or a deliberate patch-porting pass, they can be attempted explicitly by setting `APPLY_LEGACY_DEVICE_PATCHES=1`; a conflict stops the script instead of being silently skipped.
 
 ## Kernel
 
