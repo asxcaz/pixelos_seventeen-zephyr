@@ -18,53 +18,53 @@ This build follows the actual device source: codename `zephyr`, product makefile
 
 The upstream product makefile currently carries an OnePlus 10R build fingerprint despite the Realme model fields. The integration keeps upstream values rather than inventing a fingerprint; verify/fix product identity values before treating a build as ready to flash.
 
-## First Crave run: sync and preflight only
-
-From the Devspace directory for project 82:
-
-```bash
-crave run --projectID 82 --no-patch -- "curl -fLsS https://raw.githubusercontent.com/asxcaz/pixelos_seventeen-zephyr/main/build.sh -o /tmp/pixelos-build.sh && PREPARE_ONLY=1 bash /tmp/pixelos-build.sh"
-```
-
-**This first run still downloads/syncs the full Android source tree** into `pixelos-seventeen-zephyr-src/`, then prepares the device tree and runs `breakfast zephyr`. It exits before starting the actual ROM compilation. Because this intentionally keeps the Crave project's pre-populated root source untouched, allow for additional disk usage.
-
-Review the sync log and lunch result before submitting the full build:
-
-```bash
-crave run --projectID 82 --no-patch -- "curl -fLsS https://raw.githubusercontent.com/asxcaz/pixelos_seventeen-zephyr/main/build.sh -o /tmp/pixelos-build.sh && bash /tmp/pixelos-build.sh"
-```
-
-The second command runs `m pixelos`.
-
-Do not add `--clean` casually: Crave's clean workspace is based on the configured project snapshot, not an empty directory, and it discards incremental work from previous jobs.
-
-## Source refresh
-
-Normal reruns reuse the synchronized source tree and output directory to support incremental builds. To deliberately refresh sources, submit:
-
-```bash
-crave run --projectID 82 --no-patch -- "curl -fLsS https://raw.githubusercontent.com/asxcaz/pixelos_seventeen-zephyr/main/build.sh -o /tmp/pixelos-build.sh && SYNC_SOURCE=1 PREPARE_ONLY=1 bash /tmp/pixelos-build.sh"
-```
-
-This resets only generated device-tree edits before syncing and stops before compilation. Do not use this if you have made manual edits inside `pixelos-seventeen-zephyr-src/` that you want to preserve.
-
 ## GitHub Actions preflight
 
 [`.github/workflows/preflight.yml`](.github/workflows/preflight.yml) runs lightweight checks when the build scripts or workflow change. It:
 
-- reports the actual runner filesystem, inode, memory, and CPU capacity via `df`, `free`, and `nproc`;
+- reports the actual runner filesystem, inode, memory, and CPU capacity;
 - runs ShellCheck and Bash syntax checks;
 - resolves all device-source default branches and validates the generated local-manifest XML;
 - shallow-clones the PixelOS `seventeen` manifest and the device tree's advertised default branch, then checks local-manifest path collisions and expected source conventions;
 - runs the PixelOS product-conversion script against a temporary fixture.
 
-It does **not** perform the full Android `repo sync` or compile the ROM. No preinstalled toolchains are deleted. This keeps these fast checks off Crave's limited build queue while making branch and source-layout assumptions visible before submitting a remote build.
+It does **not** perform the full Android `repo sync` or compile the ROM. No preinstalled toolchains are deleted. This keeps fast checks off Crave's limited build queue.
+
+## First Crave build
+
+After GitHub Actions passes, submit the actual build directly rather than spending a separate Crave queue slot on `PREPARE_ONLY`.
+
+From the Devspace directory for project 82:
+
+```bash
+crave run --projectID 82 --no-patch -- "curl -fLsS https://raw.githubusercontent.com/asxcaz/pixelos_seventeen-zephyr/main/build.sh -o /tmp/pixelos-build.sh && bash /tmp/pixelos-build.sh"
+```
+
+The first run initializes and syncs the independent PixelOS source tree, prepares the device configuration, runs `breakfast zephyr`, and then starts `m pixelos` in the same remote task. Initial source sync takes much longer than later incremental builds. The current CI checks are script/manifest/device-layout prechecks, not proof that the whole Android 17 tree compiles.
+
+If you intentionally want to spend a Crave queue slot on a non-compiling device-config check, use:
+
+```bash
+crave run --projectID 82 --no-patch -- "curl -fLsS https://raw.githubusercontent.com/asxcaz/pixelos_seventeen-zephyr/main/build.sh -o /tmp/pixelos-build.sh && PREPARE_ONLY=1 bash /tmp/pixelos-build.sh"
+```
+
+Do not add `--clean` casually: Crave's clean workspace is based on the configured project snapshot, not an empty directory, and it discards incremental work from previous jobs.
+
+## Re-sync and rebuild
+
+Normal reruns reuse the synchronized source tree and output directory to support incremental builds. To deliberately refresh device/ROM source branches and then build in the same Crave task:
+
+```bash
+crave run --projectID 82 --no-patch -- "curl -fLsS https://raw.githubusercontent.com/asxcaz/pixelos_seventeen-zephyr/main/build.sh -o /tmp/pixelos-build.sh && SYNC_SOURCE=1 bash /tmp/pixelos-build.sh"
+```
+
+This restores only the device-tree files generated by our adapter before syncing. Do not use this if you have made manual edits inside `pixelos-seventeen-zephyr-src/` that you want to preserve.
 
 ## Device tree integration
 
 The upstream device tree is LineageOS-shaped. The prepare script derives `custom_zephyr.mk` from `lineage_zephyr.mk`, changes the common product include to PixelOS's `vendor/custom/config/common_full_phone.mk`, adds the product to `AndroidProducts.mk`, and replaces the tree's side-effectful `vendorsetup.sh` with a no-op. The MediaTek IMS dependency is declared in the local manifest so envsetup does not need to clone it.
 
-The device tree also lists several MediaTek framework/Aperture cherry-picks from older LineageOS branches. They are **not applied by default** because PixelOS seventeen is Android 17 and some target-file contexts differ. After a first build or a deliberate patch-porting pass, they can be attempted explicitly by setting `APPLY_LEGACY_DEVICE_PATCHES=1`; a conflict stops the script instead of being silently skipped.
+The device tree also lists several MediaTek framework/Aperture cherry-picks from older LineageOS branches. They are **not applied by default** because PixelOS seventeen is Android 17 and some target-file contexts differ. After a build or deliberate patch-porting pass, they can be attempted explicitly by setting `APPLY_LEGACY_DEVICE_PATCHES=1`; a conflict stops the script instead of being silently skipped.
 
 ## Kernel
 
@@ -72,6 +72,6 @@ The device tree points at the prebuilt kernel-output directory `device/oplus/zep
 
 ## Notes
 
-- Output is expected under `out/target/product/zephyr/`; the script prints available ROM ZIPs and images at the end.
+- Output is expected under `out/target/product/zephyr/`; the script prints available ZIPs and images at the end.
 - This is an initial device integration build setup, not a claim that the ROM has already compiled or booted successfully.
 - Before flashing a first build, verify the exact handset model, bootloader state, firmware requirements, product fingerprint, and backup/recovery route.
