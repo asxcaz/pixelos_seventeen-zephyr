@@ -48,6 +48,18 @@ crave run --projectID 82 --no-patch -- "curl -fLsS https://raw.githubusercontent
 
 This resets only generated device-tree edits before syncing and stops before compilation. Do not use this if you have made manual edits inside `pixelos-seventeen-zephyr-src/` that you want to preserve.
 
+## GitHub Actions preflight
+
+[`.github/workflows/preflight.yml`](.github/workflows/preflight.yml) runs lightweight checks when the build scripts or workflow change. It:
+
+- reports the actual runner filesystem, inode, memory, and CPU capacity via `df`, `free`, and `nproc`;
+- runs ShellCheck and Bash syntax checks;
+- resolves all device-source default branches and validates the generated local-manifest XML;
+- shallow-clones the PixelOS `seventeen` manifest and the device tree's advertised default branch, then checks local-manifest path collisions and expected source conventions;
+- runs the PixelOS product-conversion script against a temporary fixture.
+
+It does **not** perform the full Android `repo sync` or compile the ROM. No preinstalled toolchains are deleted. This keeps these fast checks off Crave's limited build queue while making branch and source-layout assumptions visible before submitting a remote build.
+
 ## Device tree integration
 
 The upstream device tree is LineageOS-shaped. The prepare script derives `custom_zephyr.mk` from `lineage_zephyr.mk`, changes the common product include to PixelOS's `vendor/custom/config/common_full_phone.mk`, adds the product to `AndroidProducts.mk`, and replaces the tree's side-effectful `vendorsetup.sh` with a no-op. The MediaTek IMS dependency is declared in the local manifest so envsetup does not need to clone it.
