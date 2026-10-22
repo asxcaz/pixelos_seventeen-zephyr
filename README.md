@@ -23,7 +23,7 @@ The upstream product makefile currently carries an OnePlus 10R build fingerprint
 From the Devspace directory for project 82:
 
 ```bash
-crave run --projectID 82 --no-patch -- "curl -fLsS https://raw.githubusercontent.com/asxcaz/pixelos_seventeen-zephyr/main/build.sh | PREPARE_ONLY=1 bash -s --"
+crave run --projectID 82 --no-patch -- "curl -fLsS https://raw.githubusercontent.com/asxcaz/pixelos_seventeen-zephyr/main/build.sh -o /tmp/pixelos-build.sh && PREPARE_ONLY=1 bash /tmp/pixelos-build.sh"
 ```
 
 **This first run still downloads/syncs the full Android source tree** into `pixelos-seventeen-zephyr-src/`, then prepares the device tree and runs `breakfast zephyr`. It exits before starting the actual ROM compilation. Because this intentionally keeps the Crave project's pre-populated root source untouched, allow for additional disk usage.
@@ -31,7 +31,7 @@ crave run --projectID 82 --no-patch -- "curl -fLsS https://raw.githubusercontent
 Review the sync log and lunch result before submitting the full build:
 
 ```bash
-crave run --projectID 82 --no-patch -- "curl -fLsS https://raw.githubusercontent.com/asxcaz/pixelos_seventeen-zephyr/main/build.sh | bash -s --"
+crave run --projectID 82 --no-patch -- "curl -fLsS https://raw.githubusercontent.com/asxcaz/pixelos_seventeen-zephyr/main/build.sh -o /tmp/pixelos-build.sh && bash /tmp/pixelos-build.sh"
 ```
 
 The second command runs `m pixelos`.
@@ -43,7 +43,7 @@ Do not add `--clean` casually: Crave's clean workspace is based on the configure
 Normal reruns reuse the synchronized source tree and output directory to support incremental builds. To deliberately refresh sources, submit:
 
 ```bash
-crave run --projectID 82 --no-patch -- "curl -fLsS https://raw.githubusercontent.com/asxcaz/pixelos_seventeen-zephyr/main/build.sh | SYNC_SOURCE=1 PREPARE_ONLY=1 bash -s --"
+crave run --projectID 82 --no-patch -- "curl -fLsS https://raw.githubusercontent.com/asxcaz/pixelos_seventeen-zephyr/main/build.sh -o /tmp/pixelos-build.sh && SYNC_SOURCE=1 PREPARE_ONLY=1 bash /tmp/pixelos-build.sh"
 ```
 
 This resets only generated device-tree edits before syncing and stops before compilation. Do not use this if you have made manual edits inside `pixelos-seventeen-zephyr-src/` that you want to preserve.
