@@ -67,6 +67,11 @@ source build/envsetup.sh
 log "Selecting device: zephyr"
 breakfast zephyr
 
+if [[ "${PREPARE_ONLY:-0}" == "1" ]]; then
+  log "PREPARE_ONLY=1: source sync and device lunch check completed; skipping compilation."
+  exit 0
+fi
+
 log "Building PixelOS"
 m pixelos
 
