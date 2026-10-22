@@ -1,6 +1,6 @@
-# PixelOS seventeen — Realme GT Neo 3 (zephyr)
+# PixelOS seventeen — Realme GT Neo 3 / MT6895
 
-Build automation for PixelOS Android 17 on the Realme GT Neo 3 / MT6895 using Crave.
+Build automation for PixelOS Android 17 using the OPlus MT6895 device-source set and Crave.
 
 ## Design
 
@@ -11,6 +11,12 @@ Build automation for PixelOS Android 17 on the Realme GT Neo 3 / MT6895 using Cr
 - A small config checkout lives in `.pixelos-seventeen-zephyr-config/`.
 
 The local manifest generator resolves the advertised default branch of every device-source remote using `git ls-remote --symref URL HEAD` before writing the manifest. This avoids silently pinning device repositories to guessed LineageOS branches. If a remote does not advertise its default branch, the script stops before syncing.
+
+## Device identity note
+
+The organization profile README calls the Realme GT Neo 3 `lisaa`, while the linked `android_device_oplus_zephyr` default branch defines `PRODUCT_DEVICE := zephyr` and provides `lineage_zephyr.mk` for model `RMX3563`. This build follows that repository's actual product configuration and uses `breakfast zephyr`; it does not assume the profile nickname is the Android product name.
+
+The upstream product makefile currently carries an OnePlus 10R build fingerprint despite the Realme model fields. The integration keeps upstream values rather than inventing a fingerprint; verify/fix product identity values before treating a build as ready to flash.
 
 ## Start from Crave Devspace
 
@@ -48,4 +54,4 @@ The device tree points at the prebuilt kernel-output directory `device/oplus/zep
 
 - Output is expected under `out/target/product/zephyr/`; the script prints available ZIPs and images at the end.
 - This is an initial device integration build setup, not a claim that the ROM has already compiled or booted successfully.
-- Before flashing a first build, verify the exact handset model, bootloader state, firmware requirements, and backup/recovery route.
+- Before flashing a first build, verify the exact handset model, bootloader state, firmware requirements, product fingerprint, and backup/recovery route.
