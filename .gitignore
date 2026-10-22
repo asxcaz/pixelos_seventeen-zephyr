@@ -1,0 +1,4 @@
+# Local Crave/Android build data; never commit generated source trees or artifacts.
+pixelos-seventeen-zephyr-src/
+.pixelos-seventeen-zephyr-config/
+out/
