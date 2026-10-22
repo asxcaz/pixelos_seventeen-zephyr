@@ -12,9 +12,9 @@ Build automation for PixelOS Android 17 using the OPlus MT6895 device-source set
 
 The local manifest generator resolves the advertised default branch of every device-source remote using `git ls-remote --symref URL HEAD` before writing the manifest. This avoids silently pinning device repositories to guessed LineageOS branches. If a remote does not advertise its default branch, the script stops before syncing.
 
-## Device identity note
+## Device identity
 
-The organization profile README calls the Realme GT Neo 3 `lisaa`, while the linked `android_device_oplus_zephyr` default branch defines `PRODUCT_DEVICE := zephyr` and provides `lineage_zephyr.mk` for model `RMX3563`. This build follows that repository's actual product configuration and uses `breakfast zephyr`; it does not assume the profile nickname is the Android product name.
+This build follows the actual device source: codename `zephyr`, product makefile `lineage_zephyr.mk`, and the model currently set to `RMX3563` in that source. Product names, paths, and lunch choices should follow the checked-out source, not alternate profile nicknames.
 
 The upstream product makefile currently carries an OnePlus 10R build fingerprint despite the Realme model fields. The integration keeps upstream values rather than inventing a fingerprint; verify/fix product identity values before treating a build as ready to flash.
 
