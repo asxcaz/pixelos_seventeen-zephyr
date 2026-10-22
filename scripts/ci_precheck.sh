@@ -126,7 +126,7 @@ grep -Eq '^[[:space:]]*PRODUCT_DEVICE[[:space:]]*:=[[:space:]]*zephyr[[:space:]]
 grep -Eq '^[[:space:]]*PRODUCT_NAME[[:space:]]*:=[[:space:]]*lineage_zephyr[[:space:]]*$' "$DEVICE_TREE/lineage_zephyr.mk"
 grep -q 'vendor/lineage/config/common_full_phone.mk' "$DEVICE_TREE/lineage_zephyr.mk"
 grep -q 'vendor/oplus/zephyr/BoardConfigVendor.mk' "$DEVICE_TREE/BoardConfig.mk"
-grep -q 'device/oplus/zephyr-kernel' "$DEVICE_TREE/BoardConfig.mk"
+grep -Fq 'KERNEL_PATH := $(DEVICE_PATH)-kernel' "$DEVICE_TREE/BoardConfig.mk"
 echo "Device-tree defaults and kernel-output path verified."
 
 echo
