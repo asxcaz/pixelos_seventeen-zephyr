@@ -1,0 +1,63 @@
+name: Lightweight preflight
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: preflight-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preflight:
+    name: Lint scripts and test device setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout build scripts
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Inspect runner resources
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "===== Disk space / filesystem ====="
+          df -hT
+          echo "===== Inode availability ====="
+          df -ih
+          echo "===== Memory ====="
+          free -h || true
+          echo "===== CPU count ====="
+          nproc
+          echo "===== Common preinstalled toolchain sizes (read-only) ====="
+          for path in /usr/local/lib/android/sdk /opt/hostedtoolcache /usr/share/dotnet /usr/local/share/boost /usr/local/share/powershell; do
+            if [[ -d "$path" ]]; then du -sh "$path" 2>/dev/null || true; fi
+          done
+          echo "No runner toolchains are deleted by this workflow."
+
+      - name: Install ShellCheck
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install --no-install-recommends -y shellcheck
+
+      - name: ShellCheck (errors only)
+        shell: bash
+        run: shellcheck --severity=error build.sh scripts/*.sh
+
+      - name: Bash syntax and lightweight manifest/device tests
+        shell: bash
+        run: bash scripts/ci_precheck.sh
+
+      - name: Check patch whitespace
+        shell: bash
+        run: git diff --check
