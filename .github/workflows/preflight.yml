@@ -37,11 +37,7 @@ jobs:
           free -h || true
           echo "===== CPU count ====="
           nproc
-          echo "===== Common preinstalled toolchain sizes (read-only) ====="
-          for path in /usr/local/lib/android/sdk /opt/hostedtoolcache /usr/share/dotnet /usr/local/share/boost /usr/local/share/powershell; do
-            if [[ -d "$path" ]]; then du -sh "$path" 2>/dev/null || true; fi
-          done
-          echo "No runner toolchains are deleted by this workflow."
+          echo "This workflow only measures disk and memory; it does not delete runner toolchains."
 
       - name: Install ShellCheck
         shell: bash
