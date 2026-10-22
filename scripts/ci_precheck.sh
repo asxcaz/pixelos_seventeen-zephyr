@@ -109,11 +109,11 @@ bash scripts/prepare_device.sh "$FIXTURE"
 
 grep -q 'PRODUCT_NAME := custom_zephyr' "$FIXTURE/device/oplus/zephyr/custom_zephyr.mk"
 grep -q 'vendor/custom/config/common_full_phone.mk' "$FIXTURE/device/oplus/zephyr/custom_zephyr.mk"
-grep -q '$(LOCAL_DIR)/custom_zephyr.mk' "$FIXTURE/device/oplus/zephyr/AndroidProducts.mk"
-grep -q 'PRODUCT_NAME := lineage_zephyr' "$FIXTURE/device/oplus/zephyr/AndroidProducts.mk" && {
+grep -Fq '$(LOCAL_DIR)/custom_zephyr.mk' "$FIXTURE/device/oplus/zephyr/AndroidProducts.mk"
+if grep -Fq 'PRODUCT_NAME := lineage_zephyr' "$FIXTURE/device/oplus/zephyr/AndroidProducts.mk"; then
   echo "Unexpected product assignment in AndroidProducts.mk" >&2
   exit 1
-} || true
+fi
 grep -q 'PixelOS integration' "$FIXTURE/device/oplus/zephyr/vendorsetup.sh"
 echo "PixelOS product conversion fixture passed."
 
