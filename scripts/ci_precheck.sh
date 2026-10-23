@@ -190,4 +190,26 @@ fi
 echo "Isolated Repo init passed; parent Crave repo tool was restored intact."
 
 echo
-echo "===== CI precheck completed (no Android repo sync; no ROM compilation) ====="
+echo "===== Real Repo launcher isolation smoke test ====="
+REAL_ROOT="$TMP_ROOT/real-repo-isolation"
+REAL_WORKSPACE="$REAL_ROOT/workspace"
+REAL_SRC="$REAL_WORKSPACE/pixelos-seventeen-zephyr-src"
+REAL_BIN="$REAL_ROOT/bin"
+mkdir -p "$REAL_WORKSPACE/.repo/repo" "$REAL_SRC" "$REAL_BIN"
+printf 'parent-client-marker\n' > "$REAL_WORKSPACE/.repo/repo/main.py"
+curl -fLsS https://storage.googleapis.com/git-repo-downloads/repo -o "$REAL_BIN/repo"
+chmod +x "$REAL_BIN/repo"
+PATH="$REAL_BIN:$PATH" bash scripts/init_repo_isolated.sh \
+  "$REAL_WORKSPACE" "$REAL_SRC" \
+  "https://github.com/PixelOS-AOSP/android_manifest.git" "seventeen"
+grep -qx 'parent-client-marker' "$REAL_WORKSPACE/.repo/repo/main.py"
+test -f "$REAL_SRC/.repo/repo/main.py"
+test -f "$REAL_SRC/.repo/manifests/default.xml"
+if find "$REAL_WORKSPACE/.repo" -maxdepth 1 -name 'repo-pixelos-backup.*' -print -quit | grep -q .; then
+  echo "Real Repo test left the parent-client backup behind." >&2
+  exit 1
+fi
+echo "Official Repo launcher initialized PixelOS manifests inside the independent source tree and restored the parent client."
+
+echo
+echo "===== CI precheck completed (manifest init only; no Android repo sync; no ROM compilation) ====="
