@@ -12,6 +12,8 @@ Build automation for PixelOS Android 17 using the OPlus MT6895 device-source set
 
 The local manifest generator resolves the advertised default branch of every device-source remote using `git ls-remote --symref URL HEAD` before writing the manifest. This avoids silently pinning device repositories to guessed LineageOS branches. If a remote does not advertise its default branch, the script stops before syncing.
 
+Branch selection is independent for each repository. Some dependencies may now default to `lineage-24.0`, while others still advertise `lineage-23.2`, `los-23.2`, or another branch; the script does not force all repositories onto one LineageOS branch. The preflight logs each exact selection at runtime.
+
 ## Device identity
 
 This build follows the actual device source: codename `zephyr`, product makefile `lineage_zephyr.mk`, and the model currently set to `RMX3563` in that source. Product names, paths, and lunch choices should follow the checked-out source, not alternate profile nicknames.
@@ -27,7 +29,7 @@ The upstream product makefile currently carries an OnePlus 10R build fingerprint
 - resolves all device-source default branches and validates the generated local-manifest XML;
 - shallow-clones the PixelOS `seventeen` manifest and the device tree's advertised default branch, then checks local-manifest path collisions and expected source conventions;
 - runs the PixelOS product-conversion script against a temporary fixture;
-- verifies that a nested independent source tree gets its own Repo client and restores the Crave workspace's original Repo launcher.
+- verifies that a nested independent source tree gets its own Repo client and restores the Crave workspace's original Repo launcher, including a smoke test using the official Repo launcher to initialize the PixelOS manifest without syncing the full Android source tree.
 
 It does **not** perform the full Android `repo sync` or compile the ROM. No preinstalled toolchains are deleted. This keeps fast checks off Crave's limited build queue.
 
