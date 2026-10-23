@@ -19,7 +19,7 @@ command -v curl >/dev/null 2>&1 || die "curl is missing in the Crave build image
 command -v repo >/dev/null 2>&1 || die "repo is missing in the Crave build image."
 command -v nproc >/dev/null 2>&1 || die "nproc is missing in the Crave build image."
 
-# Use the VM\x27s available logical CPUs by default; allow explicit override.
+# Use the VM's available logical CPUs by default; allow an explicit override.
 REPO_SYNC_JOBS="${REPO_SYNC_JOBS:-$(nproc --all)}"
 [[ "$REPO_SYNC_JOBS" =~ ^[1-9][0-9]*$ ]] || die "REPO_SYNC_JOBS must be a positive integer (got: $REPO_SYNC_JOBS)."
 
