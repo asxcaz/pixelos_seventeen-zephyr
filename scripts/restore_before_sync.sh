@@ -10,4 +10,26 @@ if [[ -d "$DEVICE_DIR/.git" || -f "$DEVICE_DIR/.git" ]]; then
 fi
 rm -f "$DEVICE_DIR/custom_zephyr.mk"
 
+# Undo only our marked Android 17 libmnl edit before refreshing upstream sources.
+LIBMNL_BP="$SRC_ROOT/external/libmnl/Android.bp"
+if [[ -f "$LIBMNL_BP" ]] && grep -q 'PIXEL_OS_ZEPHYR_ANDROID17_LIBMNL_PARTITION_FIX' "$LIBMNL_BP"; then
+  python3 - "$LIBMNL_BP" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+pattern = re.compile(
+    r'(?m)^(?P<indent>[ \t]*)// PIXEL_OS_ZEPHYR_ANDROID17_LIBMNL_PARTITION_FIX:.*\n'
+    r'(?P=indent)// vendor_available: true,\n'
+)
+updated, count = pattern.subn(lambda m: f'{m.group("indent")}vendor_available: true,\n', text, count=1)
+if count != 1:
+    raise SystemExit(f"Found the libmnl fix marker but could not restore its original property in {path}")
+path.write_text(updated, encoding="utf-8")
+print("Restored external/libmnl/Android.bp before source refresh.")
+PY
+fi
+
 echo "Restored generated device-tree edits before source refresh."
