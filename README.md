@@ -7,7 +7,7 @@ Build automation for PixelOS Android 17 using the OPlus MT6895 device-source set
 - Crave project ID: `82` (the project label is not the ROM selector).
 - ROM manifest: `https://github.com/PixelOS-AOSP/android_manifest.git`, branch `seventeen`.
 - Device sources: the repositories listed in [oplus-mt6895/.github](https://github.com/oplus-mt6895/.github/blob/main/profile/README.md).
-- The script puts a dedicated source tree in `pixelos-seventeen-zephyr-src/`. It does not build from or sync over the pre-populated Android tree at the root of the Crave project workspace.
+- The script puts a dedicated source tree in `pixelos-seventeen-zephyr-src/`. It does not build from or sync over the pre-populated Android tree at the root of the Crave project workspace. The first Repo initialization temporarily isolates the ancestor Crave Repo launcher so the `repo` tool cannot accidentally reuse the workspace's `.repo` metadata.
 - A small config checkout lives in `.pixelos-seventeen-zephyr-config/`.
 
 The local manifest generator resolves the advertised default branch of every device-source remote using `git ls-remote --symref URL HEAD` before writing the manifest. This avoids silently pinning device repositories to guessed LineageOS branches. If a remote does not advertise its default branch, the script stops before syncing.
@@ -26,7 +26,8 @@ The upstream product makefile currently carries an OnePlus 10R build fingerprint
 - runs ShellCheck and Bash syntax checks;
 - resolves all device-source default branches and validates the generated local-manifest XML;
 - shallow-clones the PixelOS `seventeen` manifest and the device tree's advertised default branch, then checks local-manifest path collisions and expected source conventions;
-- runs the PixelOS product-conversion script against a temporary fixture.
+- runs the PixelOS product-conversion script against a temporary fixture;
+- verifies that a nested independent source tree gets its own Repo client and restores the Crave workspace's original Repo launcher.
 
 It does **not** perform the full Android `repo sync` or compile the ROM. No preinstalled toolchains are deleted. This keeps fast checks off Crave's limited build queue.
 
