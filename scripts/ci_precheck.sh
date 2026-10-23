@@ -157,4 +157,37 @@ grep -q 'PixelOS integration' "$FIXTURE/device/oplus/zephyr/vendorsetup.sh"
 echo "PixelOS product conversion fixture passed."
 
 echo
+echo "===== Repo-client isolation test against an ancestor Crave checkout ====="
+ISO_ROOT="$TMP_ROOT/repo-isolation"
+ISO_WORKSPACE="$ISO_ROOT/workspace"
+ISO_SRC="$ISO_WORKSPACE/pixelos-seventeen-zephyr-src"
+ISO_BIN="$ISO_ROOT/fake-bin"
+mkdir -p "$ISO_WORKSPACE/.repo/repo" "$ISO_SRC" "$ISO_BIN"
+printf 'parent-client\n' > "$ISO_WORKSPACE/.repo/repo/main.py"
+cat > "$ISO_BIN/repo" <<'FAKE_REPO'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "${1:-}" == "init" ]] || { echo "Unexpected fake repo command" >&2; exit 2; }
+[[ ! -e "$ISO_WORKSPACE/.repo/repo/main.py" ]] || {
+  echo "Ancestor Repo client was not isolated before init." >&2
+  exit 3
+}
+mkdir -p .repo/repo
+printf 'nested-client\n' > .repo/repo/main.py
+printf '%s\n' "$PWD" > init.cwd
+FAKE_REPO
+chmod +x "$ISO_BIN/repo"
+ISO_WORKSPACE="$ISO_WORKSPACE" PATH="$ISO_BIN:$PATH" \
+  bash scripts/init_repo_isolated.sh "$ISO_WORKSPACE" "$ISO_SRC" \
+  "https://example.invalid/android_manifest.git" "seventeen"
+grep -qx 'parent-client' "$ISO_WORKSPACE/.repo/repo/main.py"
+grep -qx 'nested-client' "$ISO_SRC/.repo/repo/main.py"
+grep -qx "$ISO_SRC" "$ISO_SRC/init.cwd"
+if find "$ISO_WORKSPACE/.repo" -maxdepth 1 -name 'repo-pixelos-backup.*' -print -quit | grep -q .; then
+  echo "Temporary Crave repo-tool backup was not restored/cleaned." >&2
+  exit 1
+fi
+echo "Isolated Repo init passed; parent Crave repo tool was restored intact."
+
+echo
 echo "===== CI precheck completed (no Android repo sync; no ROM compilation) ====="
