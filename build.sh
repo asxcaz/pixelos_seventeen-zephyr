@@ -40,9 +40,9 @@ if [[ ! -f "$SYNC_MARKER" || "$SYNC_SOURCE" == "1" ]]; then
     bash "$CONFIG_DIR/scripts/restore_before_sync.sh" "$SRC_DIR"
   fi
 
-  cd "$SRC_DIR"
   log "Initializing PixelOS manifest branch: $MANIFEST_BRANCH"
-  repo init -u "$MANIFEST_URL" -b "$MANIFEST_BRANCH" --git-lfs
+  bash "$CONFIG_DIR/scripts/init_repo_isolated.sh" "$WORKSPACE_ROOT" "$SRC_DIR" "$MANIFEST_URL" "$MANIFEST_BRANCH"
+  cd "$SRC_DIR"
 
   mkdir -p .repo/local_manifests
   log "Resolving default branches for the device-source repositories"
