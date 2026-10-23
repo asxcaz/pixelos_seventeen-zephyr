@@ -130,7 +130,8 @@ mkdir -p \
   "$FIXTURE/device/oplus/zephyr" \
   "$FIXTURE/vendor/custom/config" \
   "$FIXTURE/vendor/oplus/zephyr" \
-  "$FIXTURE/vendor/mediatek/ims"
+  "$FIXTURE/vendor/mediatek/ims" \
+  "$FIXTURE/external/libmnl"
 
 cat > "$FIXTURE/device/oplus/zephyr/lineage_zephyr.mk" <<'EOF'
 $(call inherit-product, device/oplus/zephyr/device.mk)
@@ -144,6 +145,15 @@ EOF
 : > "$FIXTURE/vendor/oplus/zephyr/BoardConfigVendor.mk"
 : > "$FIXTURE/vendor/mediatek/ims/ims.mk"
 
+cat > "$FIXTURE/external/libmnl/Android.bp" <<'EOF'
+cc_library_shared {
+    name: "libmnl",
+    srcs: ["src/*.c"],
+    vendor_available: true,
+    visibility: ["//vendor:__subpackages__"],
+}
+EOF
+
 bash scripts/prepare_device.sh "$FIXTURE"
 
 grep -q 'PRODUCT_NAME := custom_zephyr' "$FIXTURE/device/oplus/zephyr/custom_zephyr.mk"
@@ -154,7 +164,20 @@ if grep -Fq 'PRODUCT_NAME := lineage_zephyr' "$FIXTURE/device/oplus/zephyr/Andro
   exit 1
 fi
 grep -q 'PixelOS integration' "$FIXTURE/device/oplus/zephyr/vendorsetup.sh"
-echo "PixelOS product conversion fixture passed."
+if grep -Eq '^[[:space:]]*vendor_available[[:space:]]*:[[:space:]]*true' "$FIXTURE/external/libmnl/Android.bp"; then
+  echo "AOSP external/libmnl still exposes the conflicting vendor variant." >&2
+  exit 1
+fi
+grep -q 'PIXEL_OS_ZEPHYR_ANDROID17_LIBMNL_PARTITION_FIX' "$FIXTURE/external/libmnl/Android.bp"
+echo "PixelOS product conversion and Android 17 libmnl partition fixture passed."
+
+bash scripts/restore_before_sync.sh "$FIXTURE"
+grep -Eq '^[[:space:]]*vendor_available[[:space:]]*:[[:space:]]*true' "$FIXTURE/external/libmnl/Android.bp"
+if grep -q 'PIXEL_OS_ZEPHYR_ANDROID17_LIBMNL_PARTITION_FIX' "$FIXTURE/external/libmnl/Android.bp"; then
+  echo "Restore left the libmnl patch marker behind." >&2
+  exit 1
+fi
+echo "Generated product edits and libmnl compatibility patch restore cleanly."
 
 echo
 echo "===== Repo-client isolation test against an ancestor Crave checkout ====="
