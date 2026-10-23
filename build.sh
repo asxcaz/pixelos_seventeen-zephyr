@@ -17,6 +17,11 @@ die() { echo "ERROR: $*" >&2; exit 1; }
 command -v git >/dev/null 2>&1 || die "git is missing in the Crave build image."
 command -v curl >/dev/null 2>&1 || die "curl is missing in the Crave build image."
 command -v repo >/dev/null 2>&1 || die "repo is missing in the Crave build image."
+command -v nproc >/dev/null 2>&1 || die "nproc is missing in the Crave build image."
+
+# Use the VM\x27s available logical CPUs by default; allow explicit override.
+REPO_SYNC_JOBS="${REPO_SYNC_JOBS:-$(nproc --all)}"
+[[ "$REPO_SYNC_JOBS" =~ ^[1-9][0-9]*$ ]] || die "REPO_SYNC_JOBS must be a positive integer (got: $REPO_SYNC_JOBS)."
 
 log "Workspace: $WORKSPACE_ROOT"
 log "Independent Android source tree: $SRC_DIR"
@@ -49,8 +54,8 @@ if [[ ! -f "$SYNC_MARKER" || "$SYNC_SOURCE" == "1" ]]; then
   bash "$CONFIG_DIR/scripts/write_manifest.sh" > .repo/local_manifests/zephyr.xml.tmp
   mv .repo/local_manifests/zephyr.xml.tmp .repo/local_manifests/zephyr.xml
 
-  log "Syncing PixelOS and device sources (jobs=${REPO_SYNC_JOBS:-4})"
-  repo sync --current-branch --no-clone-bundle --no-tags -j"${REPO_SYNC_JOBS:-4}"
+  log "Syncing PixelOS and device sources (jobs=$REPO_SYNC_JOBS)"
+  repo sync --current-branch --no-clone-bundle --no-tags -j"$REPO_SYNC_JOBS"
   touch "$SYNC_MARKER"
 else
   log "Reusing the existing synchronized source tree for an incremental build"
