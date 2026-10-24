@@ -69,6 +69,18 @@ clone_sparse() {
   echo "Fetching tree metadata for $label ($branch)"
   git clone --filter=blob:none --depth=1 --no-checkout --single-branch \
     --branch "$branch" "$url" "$destination"
+
+  # The kernel source repository is enormous; avoid enumerating every tracked path
+  # when this audit intentionally needs only its top-level version Makefile.
+  if [[ "$kind" == "kernel-source" ]]; then
+    printf '/Makefile\n' > "$destination/.git/info/sparse-checkout"
+    git -C "$destination" config core.sparseCheckout true
+    git -C "$destination" checkout --force --quiet HEAD
+    [[ -f "$destination/Makefile" ]] || die "Kernel-source default branch has no top-level Makefile."
+    echo "Sparse checkout for $label: Makefile only (skipped full repository tree walk)."
+    return
+  fi
+
   git -C "$destination" ls-tree -r --name-only HEAD > "$tree_file"
 
   python3 - "$tree_file" "$selected_file" "$kind" <<'PY'
