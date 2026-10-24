@@ -1,4 +1,4 @@
-name: Lightweight preflight
+name: Source compatibility preflight
 
 on:
   push:
@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   preflight:
-    name: Lint scripts and test device setup
+    name: Lint scripts and audit upstream compatibility
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
