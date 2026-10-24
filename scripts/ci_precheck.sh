@@ -215,15 +215,15 @@ if grep -Eq '^[[:space:]]*vendor_available[[:space:]]*:[[:space:]]*true' "$FIXTU
 fi
 grep -q 'PIXEL_OS_ZEPHYR_ANDROID17_LIBMNL_PARTITION_FIX' "$FIXTURE/external/libmnl/Android.bp"
 if grep -Eq 'name:[[:space:]]*"prebuilt_vendor\.mediatek\.hardware\.bluetooth\.audio@2\.[12]"' "$FIXTURE/vendor/oplus/zephyr/Android.bp"; then
-  echo "Duplicate vendor Bluetooth HIDL interface prebuilts remain after preparation." >&2
+  echo "Duplicate vendor MediaTek HIDL interface prebuilts remain after preparation." >&2
   exit 1
 fi
 if grep -Eq '^[[:space:]]*LOCAL_MODULE[[:space:]]*:?=[[:space:]]*(prebuilt_)?vendor\.mediatek\.hardware\.bluetooth\.audio@2\.[12]' "$FIXTURE/vendor/oplus/zephyr/Android.mk"; then
-  echo "Duplicate vendor Bluetooth HIDL Android.mk modules remain after preparation." >&2
+  echo "Duplicate vendor MediaTek HIDL Android.mk modules remain after preparation." >&2
   exit 1
 fi
-grep -q 'PIXEL_OS_ZEPHYR_ANDROID17_BT_HIDL_PREBUILT_FIX' "$FIXTURE/vendor/oplus/zephyr/Android.bp"
-grep -q 'PIXEL_OS_ZEPHYR_ANDROID17_BT_HIDL_PREBUILT_FIX' "$FIXTURE/vendor/oplus/zephyr/Android.mk"
+grep -q 'PIXEL_OS_ZEPHYR_ANDROID17_MTK_HIDL_PREBUILT_FIX' "$FIXTURE/vendor/oplus/zephyr/Android.bp"
+grep -q 'PIXEL_OS_ZEPHYR_ANDROID17_MTK_HIDL_PREBUILT_FIX' "$FIXTURE/vendor/oplus/zephyr/Android.mk"
 echo "PixelOS product, libmnl, Android.bp, and Android.mk compatibility fixtures passed."
 
 bash scripts/restore_before_sync.sh "$FIXTURE"
@@ -236,7 +236,7 @@ grep -q 'name: "prebuilt_vendor.mediatek.hardware.bluetooth.audio@2.1"' "$FIXTUR
 grep -q 'name: "prebuilt_vendor.mediatek.hardware.bluetooth.audio@2.2"' "$FIXTURE/vendor/oplus/zephyr/Android.bp"
 grep -q 'LOCAL_MODULE := vendor.mediatek.hardware.bluetooth.audio@2.1' "$FIXTURE/vendor/oplus/zephyr/Android.mk"
 grep -q 'LOCAL_MODULE := vendor.mediatek.hardware.bluetooth.audio@2.2' "$FIXTURE/vendor/oplus/zephyr/Android.mk"
-if grep -R -q 'PIXEL_OS_ZEPHYR_ANDROID17_BT_HIDL_PREBUILT_FIX' "$FIXTURE/vendor/oplus/zephyr"; then
+if grep -R -q 'PIXEL_OS_ZEPHYR_ANDROID17_MTK_HIDL_PREBUILT_FIX' "$FIXTURE/vendor/oplus/zephyr"; then
   echo "Restore left a Bluetooth HIDL patch marker behind." >&2
   exit 1
 fi
