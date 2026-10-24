@@ -115,8 +115,6 @@ elif kind == "kernel":
             "modules/vendor_ramdisk.modules.load.recovery",
         }
     ]
-elif kind == "kernel-source":
-    selected = [p for p in paths if p == "Makefile"]
 else:
     raise SystemExit(f"Unknown sparse checkout profile: {kind}")
 
@@ -332,13 +330,14 @@ log "Compare the live kernel-source default branch with the actual prebuilt kern
 KERNEL_SOURCE_URL="https://github.com/oplus-mt6895/android_kernel_oplus_mt6895.git"
 KERNEL_SOURCE_BRANCH="$(git ls-remote --symref "$KERNEL_SOURCE_URL" HEAD 2>/dev/null | awk '$1 == "ref:" && $3 == "HEAD" { sub("^refs/heads/", "", $2); print $2; exit }')"
 [[ -n "$KERNEL_SOURCE_BRANCH" ]] || die "Could not resolve the kernel-source repository's current default branch."
-clone_sparse "$KERNEL_SOURCE_URL" "$KERNEL_SOURCE_BRANCH" "$TMP_ROOT/kernel-source" kernel-source kernel-source
+KERNEL_SOURCE_MAKEFILE="$TMP_ROOT/kernel-source.Makefile"
+curl -fLsS --retry 3 "https://raw.githubusercontent.com/oplus-mt6895/android_kernel_oplus_mt6895/$KERNEL_SOURCE_BRANCH/Makefile" -o "$KERNEL_SOURCE_MAKEFILE"
 kernel_source_version="$(awk -F '=' '
   /^VERSION[[:space:]]*=/ { gsub(/[[:space:]]/, "", $2); v=$2 }
   /^PATCHLEVEL[[:space:]]*=/ { gsub(/[[:space:]]/, "", $2); p=$2 }
   /^SUBLEVEL[[:space:]]*=/ { gsub(/[[:space:]]/, "", $2); s=$2 }
   END { if (v == "" || p == "" || s == "") exit 1; printf "%s.%s.%s\n", v, p, s }
-' "$TMP_ROOT/kernel-source/Makefile")" || die "Could not parse kernel source version from upstream Makefile."
+' "$KERNEL_SOURCE_MAKEFILE")" || die "Could not parse kernel source version from upstream Makefile."
 gzip -t "$TMP_ROOT/kernel-output/Image.gz" || die "Prebuilt Image.gz is not a valid gzip stream."
 gzip -dc "$TMP_ROOT/kernel-output/Image.gz" > "$TMP_ROOT/kernel-image.uncompressed"
 strings -a "$TMP_ROOT/kernel-image.uncompressed" > "$TMP_ROOT/kernel-image.strings"
