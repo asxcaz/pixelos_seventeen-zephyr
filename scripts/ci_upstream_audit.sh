@@ -81,7 +81,7 @@ if kind == "vendor":
     selected = [
         p for p in paths
         if p.endswith("/Android.bp") or p == "Android.bp"
-        or p in {"BoardConfigVendor.mk", "zephyr-vendor.mk", "proprietary-files.txt"}
+        or p in {"BoardConfigVendor.mk", "zephyr-vendor.mk"}
     ]
 elif kind == "mediatek":
     selected = [
@@ -188,11 +188,11 @@ log "Run prepare/patch/restore against actual upstream files"
 [[ -f "$SRC/device/oplus/zephyr/BoardConfig.mk" ]] || die "Device tree has no BoardConfig.mk."
 [[ -f "$SRC/vendor/oplus/zephyr/BoardConfigVendor.mk" ]] || die "Vendor default branch has no BoardConfigVendor.mk."
 [[ -f "$SRC/vendor/oplus/zephyr/zephyr-vendor.mk" ]] || die "Vendor default branch has no zephyr-vendor.mk."
-[[ -f "$SRC/vendor/oplus/zephyr/proprietary-files.txt" ]] || die "Vendor sparse checkout omitted proprietary-files.txt."
-grep -Fq 'vendor/lib64/vendor.mediatek.hardware.bluetooth.audio@2.1.so' "$SRC/vendor/oplus/zephyr/proprietary-files.txt" \
-  || die "Bluetooth audio 2.1 proprietary blob was not found in vendor file list."
-grep -Fq 'vendor/lib64/vendor.mediatek.hardware.bluetooth.audio@2.2.so' "$SRC/vendor/oplus/zephyr/proprietary-files.txt" \
-  || die "Bluetooth audio 2.2 proprietary blob was not found in vendor file list."
+[[ -f "$SRC/device/oplus/zephyr/proprietary-files.txt" ]] || die "Device tree has no proprietary-files.txt."
+grep -Fq 'vendor/lib64/vendor.mediatek.hardware.bluetooth.audio@2.1.so' "$SRC/device/oplus/zephyr/proprietary-files.txt" \
+  || die "Bluetooth audio 2.1 proprietary blob was not found in device file list."
+grep -Fq 'vendor/lib64/vendor.mediatek.hardware.bluetooth.audio@2.2.so' "$SRC/device/oplus/zephyr/proprietary-files.txt" \
+  || die "Bluetooth audio 2.2 proprietary blob was not found in device file list."
 for version in 2.1 2.2; do
   grep -R -E --include='Android.bp' -q "name:[[:space:]]*\"prebuilt_vendor\\.mediatek\\.hardware\\.bluetooth\\.audio@$version\"" "$SRC/vendor/oplus/zephyr" \
     || die "Expected real vendor prebuilt module for Bluetooth audio $version was not found."
