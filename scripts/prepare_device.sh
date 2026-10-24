@@ -64,9 +64,12 @@ PY
 
 fix_android17_libmnl_partition
 
-# The source tree builds these HIDL interface libraries from hardware/mediatek's
-# .hal files with system_ext_specific=true. Vendor blob declarations may be
-# represented by generated Android.bp or legacy Android.mk modules, so cover both.
+# These HIDL interface libraries are built from hardware/mediatek .hal files
+# with system_ext_specific=true. The full upstream compatibility audit detects
+# source/vendor prebuilt name collisions; remove the exact overlapping vendor
+# module declarations while preserving proprietary blob files and file lists.
+# Current overlaps: Bluetooth audio 2.1/2.2, LBS 1.0, MtkRadioEx 2.0/3.0,
+# and netdagent 1.0. This mapping is checked against live upstreams in CI.
 fix_mtk_bluetooth_hidl_prebuilts() {
   local vendor_dir="$SRC_ROOT/vendor/oplus/zephyr"
   [[ -d "$vendor_dir" ]] || {
@@ -82,10 +85,18 @@ import sys
 root = Path(sys.argv[1])
 marker = "PIXEL_OS_ZEPHYR_ANDROID17_BT_HIDL_PREBUILT_FIX"
 targets = {
-    "prebuilt_vendor.mediatek.hardware.bluetooth.audio@2.1": "2.1",
-    "vendor.mediatek.hardware.bluetooth.audio@2.1": "2.1",
-    "prebuilt_vendor.mediatek.hardware.bluetooth.audio@2.2": "2.2",
-    "vendor.mediatek.hardware.bluetooth.audio@2.2": "2.2",
+    "prebuilt_vendor.mediatek.hardware.bluetooth.audio@2.1": "Bluetooth audio @2.1",
+    "vendor.mediatek.hardware.bluetooth.audio@2.1": "Bluetooth audio @2.1",
+    "prebuilt_vendor.mediatek.hardware.bluetooth.audio@2.2": "Bluetooth audio @2.2",
+    "vendor.mediatek.hardware.bluetooth.audio@2.2": "Bluetooth audio @2.2",
+    "prebuilt_vendor.mediatek.hardware.lbs@1.0": "LBS @1.0",
+    "vendor.mediatek.hardware.lbs@1.0": "LBS @1.0",
+    "prebuilt_vendor.mediatek.hardware.mtkradioex@2.0": "MtkRadioEx @2.0",
+    "vendor.mediatek.hardware.mtkradioex@2.0": "MtkRadioEx @2.0",
+    "prebuilt_vendor.mediatek.hardware.mtkradioex@3.0": "MtkRadioEx @3.0",
+    "vendor.mediatek.hardware.mtkradioex@3.0": "MtkRadioEx @3.0",
+    "prebuilt_vendor.mediatek.hardware.netdagent@1.0": "Netdagent @1.0",
+    "vendor.mediatek.hardware.netdagent@1.0": "Netdagent @1.0",
 }
 filenames = {
     "vendor.mediatek.hardware.bluetooth.audio@2.1.so": "2.1",
@@ -173,7 +184,7 @@ section_re = re.compile(
 )
 local_module_re = re.compile(
     r'(?m)^[ \t]*LOCAL_MODULE[ \t]*:?=[ \t]*(?:prebuilt_)?'
-    r'(vendor\.mediatek\.hardware\.bluetooth\.audio@2\.[12])[ \t]*(?:#.*)?$'
+    r'(vendor\.mediatek\.hardware\.(?:bluetooth\.audio@2\.[12]|lbs@1\.0|mtkradioex@(?:2\.0|3\.0)|netdagent@1\.0))[ \t]*(?:#.*)?$'
 )
 makefiles = sorted(set(root.rglob("*.mk")) | set(root.rglob("Android.mk")))
 for path in makefiles:
@@ -192,10 +203,13 @@ for path in makefiles:
         local_module = local_module_re.search(section)
         if not local_module:
             continue
-        version = local_module.group(1).rsplit("@", 1)[1]
-        removed.add(version)
+        module_name = local_module.group(1)
+        label = targets.get(module_name, targets.get("prebuilt_" + module_name))
+        if label is None:
+            continue
+        removed.add(label)
         output.append(text[cursor:match.start()])
-        output.append(f"# {marker}: replaced by the source-built system_ext HIDL interface (version {version}).\n")
+        output.append(f"# {marker}: replaced by the source-built system_ext HIDL interface ({label}).\n")
         cursor = match.end()
         changed = True
     if changed:
