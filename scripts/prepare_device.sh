@@ -101,7 +101,7 @@ def brace_delta(line: str) -> int:
         if quoted:
             if escaped:
                 escaped = False
-            elif char == "\\\\":
+            elif char == chr(92):
                 escaped = True
             elif char == '"':
                 quoted = False
@@ -164,7 +164,7 @@ for path in sorted(root.rglob("Android.bp")):
                 lines.insert(start, "\n")
     updated = "".join(lines)
     if marker not in updated:
-        updated = f"// {marker}: source-built system_ext HIDL interface replaces vendor prebuilt.\\n" + updated
+        updated = f"// {marker}: source-built system_ext HIDL interface replaces vendor prebuilt.\n" + updated
     path.write_text(updated, encoding="utf-8")
 
 if "2.1" not in removed and not already_marked:
