@@ -20,18 +20,23 @@ This build follows the actual device source: codename `zephyr`, product makefile
 
 The upstream product makefile currently carries an OnePlus 10R build fingerprint despite the Realme model fields. The integration keeps upstream values rather than inventing a fingerprint; verify/fix product identity values before treating a build as ready to flash.
 
-## GitHub Actions preflight
+## GitHub Actions source-compatibility preflight
 
-[`.github/workflows/preflight.yml`](.github/workflows/preflight.yml) runs lightweight checks when the build scripts or workflow change. It:
+[`.github/workflows/preflight.yml`](.github/workflows/preflight.yml) runs before spending a Crave queue slot. It uses the available GitHub runner for real upstream checks and sparse/partial checkouts, rather than downloading every Android source blob or attempting a full ROM build.
 
-- reports the actual runner filesystem, inode, memory, and CPU capacity;
-- runs ShellCheck and Bash syntax checks;
-- resolves all device-source default branches and validates the generated local-manifest XML;
-- shallow-clones the PixelOS `seventeen` manifest and the device tree's advertised default branch, then checks local-manifest path collisions and expected source conventions;
-- runs the PixelOS product-conversion script against a temporary fixture;
-- verifies that a nested independent source tree gets its own Repo client and restores the Crave workspace's original Repo launcher, including a smoke test using the official Repo launcher to initialize the PixelOS manifest without syncing the full Android source tree.
+It performs these checks:
 
-It does **not** perform the full Android `repo sync` or compile the ROM. No preinstalled toolchains are deleted. This keeps fast checks off Crave's limited build queue.
+- Reports the runner's filesystem, inode, memory, and CPU capacity; runs ShellCheck, Bash syntax checks, and whitespace validation.
+- Resolves the live default branch of all seven device-source manifest projects, verifies those branch refs are fetchable, validates the manifest XML, and checks path collisions against the active PixelOS `seventeen` manifest (currently 1,225 upstream paths).
+- Checks the current default device tree, vendor tree, MediaTek hardware tree, OPlus hardware tree, IMS project, and prebuilt-kernel tree using actual upstream files and sparse/partial checkouts.
+- Tests Repo isolation with both a mock and the official Repo launcher.
+- Runs the product and patch/restore logic on synthetic fixtures, then also runs the MediaTek HIDL and kernel checks against the actual upstream source/config files.
+- Finds same-name source HIDL/vendor-prebuilt collisions across the target device, MediaTek hardware, and OPlus hardware trees. The latest live audit found six in the current defaults: Bluetooth audio `@2.1` and `@2.2`, LBS `@1.0`, MtkRadioEx `@2.0` and `@3.0`, and netdagent `@1.0`. It verifies those duplicate vendor module declarations are removed, their proprietary-file list entries remain intact, and all generated edits can be restored to clean Git worktrees.
+- Validates that the prebuilt kernel-output branch contains `Image.gz`, `dtb/mt6895.dtb`, the module load lists, and every referenced module path. It also decompresses the actual `Image.gz` to read its Linux version and compares that version with the current kernel-source default branch's `Makefile`. The latest check found source `5.10.272` and prebuilt image `5.10.260-android12-9-o-gb026c512339a`; the ROM configuration explicitly uses the prebuilt outputs, so the audit reports this difference instead of silently switching kernels.
+
+The audit **does not** run a full Android `repo sync` or compile the ROM. The GitHub-hosted runner currently exposes around 145 GB of disk, 4 CPUs, and 15 GiB RAM, and the Android/PixelOS full source build is not a good fit for that runner. Sparse/partial clones focus on the relevant source and config files, avoid filling storage with unrelated binary blobs, and keep full sync/build attempts on Crave.
+
+It does not delete preinstalled toolchains or try to consume free disk just for the sake of using it. The goal is to catch likely manifest, default-branch, patch/restore, kernel-package, and Soong partition issues before another long Crave run—not to claim that CI proves the entire ROM will compile or boot.
 
 ## First Crave build
 
