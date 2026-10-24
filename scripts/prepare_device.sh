@@ -70,7 +70,7 @@ fix_android17_libmnl_partition
 # module declarations while preserving proprietary blob files and file lists.
 # Current overlaps: Bluetooth audio 2.1/2.2, LBS 1.0, MtkRadioEx 2.0/3.0,
 # and netdagent 1.0. This mapping is checked against live upstreams in CI.
-fix_mtk_bluetooth_hidl_prebuilts() {
+fix_mtk_hidl_vendor_prebuilts() {
   local vendor_dir="$SRC_ROOT/vendor/oplus/zephyr"
   [[ -d "$vendor_dir" ]] || {
     echo "ERROR: expected vendor project at $vendor_dir"
@@ -83,7 +83,7 @@ import re
 import sys
 
 root = Path(sys.argv[1])
-marker = "PIXEL_OS_ZEPHYR_ANDROID17_BT_HIDL_PREBUILT_FIX"
+marker = "PIXEL_OS_ZEPHYR_ANDROID17_MTK_HIDL_PREBUILT_FIX"
 targets = {
     "prebuilt_vendor.mediatek.hardware.bluetooth.audio@2.1": "Bluetooth audio @2.1",
     "vendor.mediatek.hardware.bluetooth.audio@2.1": "Bluetooth audio @2.1",
@@ -224,13 +224,13 @@ for path in makefiles:
 if not removed and not already_marked:
     print("No duplicate MediaTek HIDL prebuilt declarations found in the current vendor tree; nothing changed.")
 elif removed:
-    print("Removed duplicate vendor Bluetooth HIDL module declarations: " + ", ".join(sorted(removed)))
+    print("Removed duplicate MediaTek HIDL vendor module declarations: " + ", ".join(sorted(removed)))
 else:
     print("MediaTek HIDL prebuilt removal already applied.")
 PY
 }
 
-fix_mtk_bluetooth_hidl_prebuilts
+fix_mtk_hidl_vendor_prebuilts
 
 apply_patch_commit() {
   local repo_dir="$1"
