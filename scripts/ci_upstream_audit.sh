@@ -229,6 +229,10 @@ overlaps = {
 expected = {
     "vendor.mediatek.hardware.bluetooth.audio@2.1",
     "vendor.mediatek.hardware.bluetooth.audio@2.2",
+    "vendor.mediatek.hardware.lbs@1.0",
+    "vendor.mediatek.hardware.mtkradioex@2.0",
+    "vendor.mediatek.hardware.mtkradioex@3.0",
+    "vendor.mediatek.hardware.netdagent@1.0",
 }
 if mode == "before":
     if set(overlaps) != expected:
@@ -319,10 +323,16 @@ log "Verify actual vendor module declarations before patching"
 [[ -f "$SRC/vendor/oplus/zephyr/BoardConfigVendor.mk" ]] || die "Vendor default branch has no BoardConfigVendor.mk."
 [[ -f "$SRC/vendor/oplus/zephyr/zephyr-vendor.mk" ]] || die "Vendor default branch has no zephyr-vendor.mk."
 [[ -f "$SRC/device/oplus/zephyr/proprietary-files.txt" ]] || die "Device tree has no proprietary-files.txt."
-grep -Fq 'vendor/lib64/vendor.mediatek.hardware.bluetooth.audio@2.1.so' "$SRC/device/oplus/zephyr/proprietary-files.txt" \
-  || die "Bluetooth audio 2.1 proprietary blob was not found in device file list."
-grep -Fq 'vendor/lib64/vendor.mediatek.hardware.bluetooth.audio@2.2.so' "$SRC/device/oplus/zephyr/proprietary-files.txt" \
-  || die "Bluetooth audio 2.2 proprietary blob was not found in device file list."
+for blob in \
+  vendor/lib64/vendor.mediatek.hardware.bluetooth.audio@2.1.so \
+  vendor/lib64/vendor.mediatek.hardware.bluetooth.audio@2.2.so \
+  vendor/lib64/vendor.mediatek.hardware.lbs@1.0.so \
+  vendor/lib64/vendor.mediatek.hardware.mtkradioex@2.0.so \
+  vendor/lib64/vendor.mediatek.hardware.mtkradioex@3.0.so \
+  vendor/lib64/vendor.mediatek.hardware.netdagent@1.0.so; do
+  grep -Fqx "$blob" "$SRC/device/oplus/zephyr/proprietary-files.txt" \
+    || die "Expected proprietary blob entry was not found: $blob"
+done
 audit_hidl_vendor_overlap before
 
 mkdir -p "$SRC/vendor/custom/config"
@@ -354,7 +364,7 @@ audit_hidl_vendor_overlap after
 if ! grep -R -q 'PIXEL_OS_ZEPHYR_ANDROID17_BT_HIDL_PREBUILT_FIX' "$SRC/vendor/oplus/zephyr" --include='Android.bp' --include='Android.mk' --include='*.mk'; then
   die "Bluetooth HIDL patch marker missing from actual vendor module files."
 fi
-echo "Both real vendor HIDL module declarations were removed; their blob entries remain intact."
+echo "All six real source/vendor HIDL collisions were removed; all six proprietary blob entries remain intact."
 
 bash "$ROOT/scripts/restore_before_sync.sh" "$SRC"
 git -C "$SRC/device/oplus/zephyr" diff --check
