@@ -330,7 +330,7 @@ kernel_source_version="$(awk -F '=' '
 gzip -t "$TMP_ROOT/kernel-output/Image.gz" || die "Prebuilt Image.gz is not a valid gzip stream."
 gzip -dc "$TMP_ROOT/kernel-output/Image.gz" > "$TMP_ROOT/kernel-image.uncompressed"
 strings -a "$TMP_ROOT/kernel-image.uncompressed" > "$TMP_ROOT/kernel-image.strings"
-kernel_output_version="$(grep -Eo 'Linux version [0-9]+\.[0-9]+\.[0-9]+[^[:space:]]*' "$TMP_ROOT/kernel-image.strings" | head -n 1 | sed 's/^Linux version //')"
+kernel_output_version="$(awk '/Linux version [0-9]+\\.[0-9]+\\.[0-9]+/ { sub(/^.*Linux version /, \"\"); sub(/[[:space:]].*$/, \"\"); print; exit }' \"$TMP_ROOT/kernel-image.strings\")"
 [[ -n "$kernel_output_version" ]] || die "Could not extract Linux version string from prebuilt Image.gz."
 echo "Kernel source: $KERNEL_SOURCE_BRANCH -> $kernel_source_version"
 echo "Prebuilt kernel image: $kernel_output_version (from $KERNEL_BRANCH)"
