@@ -120,14 +120,14 @@ PY
 }
 
 audit_hidl_vendor_overlap() {
-  python3 - "$SRC/hardware/mediatek" "$SRC/vendor/oplus/zephyr" "$1" <<'PY'
+  python3 - "$SRC/hardware/mediatek" "$SRC/hardware/oplus" "$SRC/device/oplus/zephyr" "$SRC/vendor/oplus/zephyr" "$1" <<'PY'
 from pathlib import Path
 import re
 import sys
 
-hardware_root = Path(sys.argv[1])
-vendor_root = Path(sys.argv[2])
-mode = sys.argv[3]
+source_roots = [Path(value) for value in sys.argv[1:4]]
+vendor_root = Path(sys.argv[4])
+mode = sys.argv[5]
 
 def brace_delta(line):
     delta = 0
@@ -254,7 +254,7 @@ elif mode == "after":
             for name, locations in sorted(overlaps.items())
         ]
         raise SystemExit("Unresolved source/vendor HIDL overlaps after patch: " + " | ".join(details))
-    print(f"No source HIDL/vendor prebuilt overlaps remain across {len(source_modules)} MediaTek HIDL modules.")
+    print(f"No source HIDL/vendor prebuilt overlaps remain across {len(source_modules)} target-device HIDL modules.")
 else:
     raise SystemExit(f"Unknown overlap audit mode: {mode}")
 PY
@@ -270,6 +270,8 @@ VENDOR_URL="$(project_value vendor/oplus/zephyr 2)"
 VENDOR_BRANCH="$(project_value vendor/oplus/zephyr 3)"
 MTK_URL="$(project_value hardware/mediatek 2)"
 MTK_BRANCH="$(project_value hardware/mediatek 3)"
+OPLUS_HW_URL="$(project_value hardware/oplus 2)"
+OPLUS_HW_BRANCH="$(project_value hardware/oplus 3)"
 KERNEL_URL="$(project_value device/oplus/zephyr-kernel 2)"
 KERNEL_BRANCH="$(project_value device/oplus/zephyr-kernel 3)"
 IMS_URL="$(project_value vendor/mediatek/ims 2)"
@@ -278,6 +280,7 @@ IMS_BRANCH="$(project_value vendor/mediatek/ims 3)"
 git clone --depth=1 --single-branch --branch "$DEVICE_BRANCH" "$DEVICE_URL" "$SRC/device/oplus/zephyr"
 clone_sparse "$VENDOR_URL" "$VENDOR_BRANCH" "$SRC/vendor/oplus/zephyr" vendor vendor
 clone_sparse "$MTK_URL" "$MTK_BRANCH" "$SRC/hardware/mediatek" mediatek mediatek
+clone_sparse "$OPLUS_HW_URL" "$OPLUS_HW_BRANCH" "$SRC/hardware/oplus" mediatek oplus-hardware
 clone_sparse "$KERNEL_URL" "$KERNEL_BRANCH" "$TMP_ROOT/kernel-output" kernel kernel-output
 git clone --filter=blob:none --depth=1 --single-branch --branch "$IMS_BRANCH" "$IMS_URL" "$SRC/vendor/mediatek/ims"
 
