@@ -145,6 +145,36 @@ EOF
 : > "$FIXTURE/vendor/oplus/zephyr/BoardConfigVendor.mk"
 : > "$FIXTURE/vendor/mediatek/ims/ims.mk"
 
+cat > "$FIXTURE/vendor/oplus/zephyr/Android.bp" <<'EOF'
+cc_prebuilt_library_shared {
+    name: "prebuilt_vendor.mediatek.hardware.bluetooth.audio@2.1",
+    srcs: ["proprietary/vendor/lib64/vendor.mediatek.hardware.bluetooth.audio@2.1.so"],
+    target: {
+        android_arm64: {
+            srcs: ["proprietary/vendor/lib64/vendor.mediatek.hardware.bluetooth.audio@2.1.so"],
+        },
+    },
+    soc_specific: true,
+}
+
+cc_prebuilt_library_shared {
+    name: "prebuilt_vendor.mediatek.hardware.bluetooth.audio@2.2",
+    srcs: ["proprietary/vendor/lib64/vendor.mediatek.hardware.bluetooth.audio@2.2.so"],
+    target: {
+        android_arm64: {
+            srcs: ["proprietary/vendor/lib64/vendor.mediatek.hardware.bluetooth.audio@2.2.so"],
+        },
+    },
+    soc_specific: true,
+}
+EOF
+git -C "$FIXTURE/vendor/oplus/zephyr" init -q
+git -C "$FIXTURE/vendor/oplus/zephyr" config user.name "Preflight"
+git -C "$FIXTURE/vendor/oplus/zephyr" config user.email "preflight@example.invalid"
+git -C "$FIXTURE/vendor/oplus/zephyr" add Android.bp
+git -C "$FIXTURE/vendor/oplus/zephyr" commit -qm "fixture baseline vendor bp"
+
+
 cat > "$FIXTURE/external/libmnl/Android.bp" <<'EOF'
 cc_library_shared {
     name: "libmnl",
@@ -169,7 +199,26 @@ if grep -Eq '^[[:space:]]*vendor_available[[:space:]]*:[[:space:]]*true' "$FIXTU
   exit 1
 fi
 grep -q 'PIXEL_OS_ZEPHYR_ANDROID17_LIBMNL_PARTITION_FIX' "$FIXTURE/external/libmnl/Android.bp"
-echo "PixelOS product conversion and Android 17 libmnl partition fixture passed."
+if grep -Eq 'name:[[:space:]]*"prebuilt_vendor\.mediatek\.hardware\.bluetooth\.audio@2\.[12]"' "$FIXTURE/vendor/oplus/zephyr/Android.bp"; then
+  echo "Duplicate vendor Bluetooth HIDL interface prebuilts remain after preparation." >&2
+  exit 1
+fi
+grep -q 'PIXEL_OS_ZEPHYR_ANDROID17_BT_HIDL_PREBUILT_FIX' "$FIXTURE/vendor/oplus/zephyr/Android.bp"
+echo "PixelOS product, libmnl, and Bluetooth HIDL compatibility fixtures passed."
+
+bash scripts/restore_before_sync.sh "$FIXTURE"
+grep -Eq '^[[:space:]]*vendor_available[[:space:]]*:[[:space:]]*true' "$FIXTURE/external/libmnl/Android.bp"
+if grep -q 'PIXEL_OS_ZEPHYR_ANDROID17_LIBMNL_PARTITION_FIX' "$FIXTURE/external/libmnl/Android.bp"; then
+  echo "Restore left the libmnl patch marker behind." >&2
+  exit 1
+fi
+grep -q 'name: "prebuilt_vendor.mediatek.hardware.bluetooth.audio@2.1"' "$FIXTURE/vendor/oplus/zephyr/Android.bp"
+grep -q 'name: "prebuilt_vendor.mediatek.hardware.bluetooth.audio@2.2"' "$FIXTURE/vendor/oplus/zephyr/Android.bp"
+if grep -q 'PIXEL_OS_ZEPHYR_ANDROID17_BT_HIDL_PREBUILT_FIX' "$FIXTURE/vendor/oplus/zephyr/Android.bp"; then
+  echo "Restore left the Bluetooth HIDL patch marker behind." >&2
+  exit 1
+fi
+echo "Generated product edits and Android 17 compatibility patches restore cleanly."
 
 bash scripts/restore_before_sync.sh "$FIXTURE"
 grep -Eq '^[[:space:]]*vendor_available[[:space:]]*:[[:space:]]*true' "$FIXTURE/external/libmnl/Android.bp"
