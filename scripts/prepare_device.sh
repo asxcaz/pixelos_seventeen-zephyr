@@ -65,9 +65,8 @@ PY
 fix_android17_libmnl_partition
 
 # The source tree builds these HIDL interface libraries from hardware/mediatek's
-# .hal files with system_ext_specific=true. The extracted vendor copies create
-# duplicate prebuilt modules in vendor, producing a Soong partition mismatch.
-# Drop only those two interface prebuilts; keep the vendor implementation blobs.
+# .hal files with system_ext_specific=true. Vendor blob declarations may be
+# represented by generated Android.bp or legacy Android.mk modules, so cover both.
 fix_mtk_bluetooth_hidl_prebuilts() {
   local vendor_dir="$SRC_ROOT/vendor/oplus/zephyr"
   [[ -d "$vendor_dir" ]] || {
@@ -84,12 +83,16 @@ root = Path(sys.argv[1])
 marker = "PIXEL_OS_ZEPHYR_ANDROID17_BT_HIDL_PREBUILT_FIX"
 targets = {
     "prebuilt_vendor.mediatek.hardware.bluetooth.audio@2.1": "2.1",
+    "vendor.mediatek.hardware.bluetooth.audio@2.1": "2.1",
     "prebuilt_vendor.mediatek.hardware.bluetooth.audio@2.2": "2.2",
+    "vendor.mediatek.hardware.bluetooth.audio@2.2": "2.2",
 }
 filenames = {
     "vendor.mediatek.hardware.bluetooth.audio@2.1.so": "2.1",
     "vendor.mediatek.hardware.bluetooth.audio@2.2.so": "2.2",
 }
+removed = set()
+already_marked = False
 
 def brace_delta(line: str) -> int:
     delta = 0
@@ -117,9 +120,8 @@ def brace_delta(line: str) -> int:
         i += 1
     return delta
 
+# Remove generated Soong prebuilt module declarations where they exist.
 module_start = re.compile(r'^[ \t]*(?:cc_prebuilt_library_shared|cc_prebuilt_library|cc_prebuilt_binary)[ \t]*\{')
-removed = set()
-already_marked = False
 for path in sorted(root.rglob("Android.bp")):
     text = path.read_text(encoding="utf-8")
     already_marked = already_marked or marker in text
@@ -140,40 +142,73 @@ for path in sorted(root.rglob("Android.bp")):
                 break
         if end is None:
             raise SystemExit(f"Unbalanced Android.bp module braces in {path} starting at line {start + 1}")
-        block = "".join(lines[start:end + 1])
-        name_match = re.search(r'(?m)^[ \t]*name:[ \t]*"([^"]+)"', block)
+        module_text = "".join(lines[start:end + 1])
+        name_match = re.search(r'(?m)^[ \t]*name:[ \t]*"([^"]+)"', module_text)
         name = name_match.group(1) if name_match else ""
-        target = targets.get(name)
-        if target is None:
-            for filename, version in filenames.items():
-                if filename in block and re.search(r'(?m)^[ \t]*srcs[ \t]*:', block):
-                    target = version
+        version = targets.get(name)
+        if version is None:
+            for filename, candidate in filenames.items():
+                if filename in module_text and re.search(r'(?m)^[ \t]*srcs[ \t]*:', module_text):
+                    version = candidate
                     break
-        if target is not None:
-            blocks.append((start, end, target))
+        if version is not None:
+            blocks.append((start, end, version))
         i = end + 1
 
-    if not blocks:
-        continue
-    for start, end, target in reversed(blocks):
-        removed.add(target)
-        del lines[start:end + 1]
-        # Keep a blank line between modules if the deletion joined them.
-        if start < len(lines) and start > 0:
-            if lines[start - 1].strip() and lines[start].strip():
+    if blocks:
+        for start, end, version in reversed(blocks):
+            removed.add(version)
+            del lines[start:end + 1]
+            if start < len(lines) and start > 0 and lines[start - 1].strip() and lines[start].strip():
                 lines.insert(start, "\n")
-    updated = "".join(lines)
-    if marker not in updated:
-        updated = f"// {marker}: source-built system_ext HIDL interface replaces vendor prebuilt.\n" + updated
-    path.write_text(updated, encoding="utf-8")
+        updated = "".join(lines)
+        if marker not in updated:
+            updated = f"// {marker}: replaced by the source-built system_ext HIDL interface.\n" + updated
+        path.write_text(updated, encoding="utf-8")
 
-if "2.1" not in removed and not already_marked:
-    raise SystemExit(
-        "Could not find the duplicate prebuilt_vendor.mediatek.hardware.bluetooth.audio@2.1 "
-        "module under vendor/oplus/zephyr; refusing to make an unverified change."
-    )
-if removed:
-    print("Removed duplicate vendor Bluetooth HIDL interface prebuilt module(s): " + ", ".join(sorted(removed)))
+# Legacy vendor trees commonly declare prebuilt libraries in Android.mk.
+section_re = re.compile(
+    r'(?ims)^[ \t]*include[ \t]+\$\([ \t]*CLEAR_VARS[ \t]*\)[ \t]*\r?\n'
+    r'.*?^[ \t]*include[ \t]+\$\([ \t]*BUILD_[A-Z0-9_]+[ \t]*\)[ \t]*(?:#.*)?(?:\r?\n|$)'
+)
+local_module_re = re.compile(
+    r'(?m)^[ \t]*LOCAL_MODULE[ \t]*:?=[ \t]*(?:prebuilt_)?'
+    r'(vendor\.mediatek\.hardware\.bluetooth\.audio@2\.[12])[ \t]*(?:#.*)?$'
+)
+for path in sorted(root.rglob("*.mk")) + sorted(root.rglob("Android.mk")):
+    if not path.is_file():
+        continue
+    # Android.mk can also end in .mk; avoid editing the same file twice.
+    if path.suffix == ".mk" and path.name == "Android.mk":
+        continue
+    text = path.read_text(encoding="utf-8")
+    already_marked = already_marked or marker in text
+    matches = list(section_re.finditer(text))
+    if not matches:
+        continue
+    output = []
+    cursor = 0
+    changed = False
+    for match in matches:
+        section = match.group(0)
+        local_module = local_module_re.search(section)
+        if not local_module:
+            continue
+        version = local_module.group(1).rsplit("@", 1)[1]
+        removed.add(version)
+        output.append(text[cursor:match.start()])
+        output.append(f"# {marker}: replaced by the source-built system_ext HIDL interface (version {version}).\n")
+        cursor = match.end()
+        changed = True
+    if changed:
+        output.append(text[cursor:])
+        updated = "".join(output)
+        path.write_text(updated, encoding="utf-8")
+
+if not removed and not already_marked:
+    print("No duplicate Bluetooth HIDL prebuilt declarations found in the current vendor tree; nothing changed.")
+elif removed:
+    print("Removed duplicate vendor Bluetooth HIDL module declarations: " + ", ".join(sorted(removed)))
 else:
     print("MediaTek Bluetooth HIDL prebuilt removal already applied.")
 PY
