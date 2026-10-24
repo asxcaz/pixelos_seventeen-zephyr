@@ -32,4 +32,21 @@ print("Restored external/libmnl/Android.bp before source refresh.")
 PY
 fi
 
+# Restore vendor Android.bp files changed to remove duplicate Bluetooth HIDL prebuilts.
+VENDOR_DIR="$SRC_ROOT/vendor/oplus/zephyr"
+if [[ -d "$VENDOR_DIR" ]] && git -C "$VENDOR_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  while IFS= read -r -d '' bp; do
+    if grep -q 'PIXEL_OS_ZEPHYR_ANDROID17_BT_HIDL_PREBUILT_FIX' "$bp"; then
+      rel_path="$(python3 -c 'import os,sys; print(os.path.relpath(sys.argv[1], sys.argv[2]))' "$bp" "$VENDOR_DIR")"
+      if git -C "$VENDOR_DIR" ls-files --error-unmatch "$rel_path" >/dev/null 2>&1; then
+        git -C "$VENDOR_DIR" checkout -- "$rel_path"
+        echo "Restored $rel_path before source refresh."
+      else
+        echo "ERROR: marked vendor Android.bp is not tracked by its Repo project: $rel_path" >&2
+        exit 1
+      fi
+    fi
+  done < <(find "$VENDOR_DIR" -type f -name Android.bp -print0)
+fi
+
 echo "Restored generated device-tree edits before source refresh."
