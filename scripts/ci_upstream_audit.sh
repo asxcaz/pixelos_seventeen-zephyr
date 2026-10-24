@@ -103,6 +103,8 @@ elif kind == "kernel":
             "modules/vendor_ramdisk.modules.load.recovery",
         }
     ]
+elif kind == "kernel-source":
+    selected = [p for p in paths if p == "Makefile"]
 else:
     raise SystemExit(f"Unknown sparse checkout profile: {kind}")
 
@@ -313,6 +315,28 @@ for module in bt_drv_6895.ko connfem.ko conninfra.ko fmradio_drv_connac2x.ko gps
   grep -Fxq "modules/$module" "$KERNEL_TREE" || die "BoardConfig expects missing prebuilt module: $module"
 done
 echo "Prebuilt kernel tree contains Image.gz, mt6895.dtb, load lists, and all referenced module paths."
+
+log "Compare the live kernel-source default branch with the actual prebuilt kernel image"
+KERNEL_SOURCE_URL="https://github.com/oplus-mt6895/android_kernel_oplus_mt6895.git"
+KERNEL_SOURCE_BRANCH="$(git ls-remote --symref "$KERNEL_SOURCE_URL" HEAD 2>/dev/null | awk '$1 == "ref:" && $3 == "HEAD" { sub("^refs/heads/", "", $2); print $2; exit }')"
+[[ -n "$KERNEL_SOURCE_BRANCH" ]] || die "Could not resolve the kernel-source repository's current default branch."
+clone_sparse "$KERNEL_SOURCE_URL" "$KERNEL_SOURCE_BRANCH" "$TMP_ROOT/kernel-source" kernel-source kernel-source
+kernel_source_version="$(awk -F '=' '
+  /^VERSION[[:space:]]*=/ { gsub(/[[:space:]]/, "", $2); v=$2 }
+  /^PATCHLEVEL[[:space:]]*=/ { gsub(/[[:space:]]/, "", $2); p=$2 }
+  /^SUBLEVEL[[:space:]]*=/ { gsub(/[[:space:]]/, "", $2); s=$2 }
+  END { if (v == "" || p == "" || s == "") exit 1; printf "%s.%s.%s\n", v, p, s }
+' "$TMP_ROOT/kernel-source/Makefile")" || die "Could not parse kernel source version from upstream Makefile."
+gzip -t "$TMP_ROOT/kernel-output/Image.gz" || die "Prebuilt Image.gz is not a valid gzip stream."
+gzip -dc "$TMP_ROOT/kernel-output/Image.gz" > "$TMP_ROOT/kernel-image.uncompressed"
+strings -a "$TMP_ROOT/kernel-image.uncompressed" > "$TMP_ROOT/kernel-image.strings"
+kernel_output_version="$(grep -Eo 'Linux version [0-9]+\.[0-9]+\.[0-9]+[^[:space:]]*' "$TMP_ROOT/kernel-image.strings" | head -n 1 | sed 's/^Linux version //')"
+[[ -n "$kernel_output_version" ]] || die "Could not extract Linux version string from prebuilt Image.gz."
+echo "Kernel source: $KERNEL_SOURCE_BRANCH -> $kernel_source_version"
+echo "Prebuilt kernel image: $kernel_output_version (from $KERNEL_BRANCH)"
+if [[ "$kernel_source_version" != "$kernel_output_version" ]]; then
+  echo "NOTE: source and prebuilt versions differ; current ROM config explicitly uses the prebuilt kernel output tree."
+fi
 
 log "Fetch the exact Android 17 AOSP external/libmnl revision used by PixelOS"
 git clone --depth=1 --single-branch --branch android-17.0.0_r1 \
