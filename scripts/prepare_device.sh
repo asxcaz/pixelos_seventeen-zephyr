@@ -99,8 +99,12 @@ targets = {
     "vendor.mediatek.hardware.netdagent@1.0": "Netdagent @1.0",
 }
 filenames = {
-    "vendor.mediatek.hardware.bluetooth.audio@2.1.so": "2.1",
-    "vendor.mediatek.hardware.bluetooth.audio@2.2.so": "2.2",
+    "vendor.mediatek.hardware.bluetooth.audio@2.1.so": "Bluetooth audio @2.1",
+    "vendor.mediatek.hardware.bluetooth.audio@2.2.so": "Bluetooth audio @2.2",
+    "vendor.mediatek.hardware.lbs@1.0.so": "LBS @1.0",
+    "vendor.mediatek.hardware.mtkradioex@2.0.so": "MtkRadioEx @2.0",
+    "vendor.mediatek.hardware.mtkradioex@3.0.so": "MtkRadioEx @3.0",
+    "vendor.mediatek.hardware.netdagent@1.0.so": "Netdagent @1.0",
 }
 removed = set()
 already_marked = False
@@ -218,11 +222,11 @@ for path in makefiles:
         path.write_text(updated, encoding="utf-8")
 
 if not removed and not already_marked:
-    print("No duplicate Bluetooth HIDL prebuilt declarations found in the current vendor tree; nothing changed.")
+    print("No duplicate MediaTek HIDL prebuilt declarations found in the current vendor tree; nothing changed.")
 elif removed:
     print("Removed duplicate vendor Bluetooth HIDL module declarations: " + ", ".join(sorted(removed)))
 else:
-    print("MediaTek Bluetooth HIDL prebuilt removal already applied.")
+    print("MediaTek HIDL prebuilt removal already applied.")
 PY
 }
 
