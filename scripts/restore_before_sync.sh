@@ -32,11 +32,11 @@ print("Restored external/libmnl/Android.bp before source refresh.")
 PY
 fi
 
-# Restore vendor Android.bp files changed to remove duplicate Bluetooth HIDL prebuilts.
+# Restore vendor Android.bp files changed to remove duplicate MediaTek HIDL vendor prebuilts.
 VENDOR_DIR="$SRC_ROOT/vendor/oplus/zephyr"
 if [[ -d "$VENDOR_DIR" ]] && git -C "$VENDOR_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   while IFS= read -r -d '' file; do
-    if grep -q 'PIXEL_OS_ZEPHYR_ANDROID17_BT_HIDL_PREBUILT_FIX' "$file"; then
+    if grep -q 'PIXEL_OS_ZEPHYR_ANDROID17_MTK_HIDL_PREBUILT_FIX' "$file"; then
       rel_path="$(python3 -c 'import os,sys; print(os.path.relpath(sys.argv[1], sys.argv[2]))' "$file" "$VENDOR_DIR")"
       if git -C "$VENDOR_DIR" ls-files --error-unmatch "$rel_path" >/dev/null 2>&1; then
         git -C "$VENDOR_DIR" checkout -- "$rel_path"
