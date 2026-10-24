@@ -175,11 +175,9 @@ local_module_re = re.compile(
     r'(?m)^[ \t]*LOCAL_MODULE[ \t]*:?=[ \t]*(?:prebuilt_)?'
     r'(vendor\.mediatek\.hardware\.bluetooth\.audio@2\.[12])[ \t]*(?:#.*)?$'
 )
-for path in sorted(root.rglob("*.mk")) + sorted(root.rglob("Android.mk")):
+makefiles = sorted(set(root.rglob("*.mk")) | set(root.rglob("Android.mk")))
+for path in makefiles:
     if not path.is_file():
-        continue
-    # Android.mk can also end in .mk; avoid editing the same file twice.
-    if path.suffix == ".mk" and path.name == "Android.mk":
         continue
     text = path.read_text(encoding="utf-8")
     already_marked = already_marked or marker in text
