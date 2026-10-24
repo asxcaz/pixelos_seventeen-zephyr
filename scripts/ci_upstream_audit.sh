@@ -177,19 +177,20 @@ def blocks(path, start_pattern):
         i = end + 1
 
 source_modules = {}
-for path in hardware_root.rglob("Android.bp"):
-    try:
-        for line_no, block in blocks(path, r'^[ \t]*hidl_interface[ \t]*\{'):
-            name_match = re.search(r'(?m)^[ \t]*name:[ \t]*"([^"]+)"', block)
-            if not name_match:
-                continue
-            partition = "system_ext" if re.search(r'(?m)^[ \t]*system_ext_specific:[ \t]*true\b', block) else "system"
-            if re.search(r'(?m)^[ \t]*(?:vendor|soc_specific):[ \t]*true\b', block):
-                partition = "vendor"
-            if partition != "vendor":
-                source_modules[name_match.group(1)] = (partition, f"{path}:{line_no}")
-    except (OSError, UnicodeError):
-        continue
+for source_root in source_roots:
+    for path in source_root.rglob("Android.bp"):
+        try:
+            for line_no, module_block in blocks(path, r'^[ \t]*hidl_interface[ \t]*\{'):
+                name_match = re.search(r'(?m)^[ \t]*name:[ \t]*"([^"]+)"', module_block)
+                if not name_match:
+                    continue
+                partition = "system_ext" if re.search(r'(?m)^[ \t]*system_ext_specific:[ \t]*true\b', module_block) else "system"
+                if re.search(r'(?m)^[ \t]*(?:vendor|soc_specific):[ \t]*true\b', module_block):
+                    partition = "vendor"
+                if partition != "vendor":
+                    source_modules[name_match.group(1)] = (partition, f"{path}:{line_no}")
+        except (OSError, UnicodeError):
+            continue
 
 vendor_declarations = {}
 bp_start = r'^[ \t]*(?:cc_prebuilt_library_shared|cc_prebuilt_library|cc_prebuilt_binary)[ \t]*\{'
