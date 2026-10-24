@@ -81,6 +81,8 @@ if kind == "vendor":
     selected = [
         p for p in paths
         if p.endswith("/Android.bp") or p == "Android.bp"
+        or p.endswith("/Android.mk") or p == "Android.mk"
+        or p.endswith(".mk")
         or p in {"BoardConfigVendor.mk", "zephyr-vendor.mk"}
     ]
 elif kind == "mediatek":
@@ -194,8 +196,11 @@ grep -Fq 'vendor/lib64/vendor.mediatek.hardware.bluetooth.audio@2.1.so' "$SRC/de
 grep -Fq 'vendor/lib64/vendor.mediatek.hardware.bluetooth.audio@2.2.so' "$SRC/device/oplus/zephyr/proprietary-files.txt" \
   || die "Bluetooth audio 2.2 proprietary blob was not found in device file list."
 for version in 2.1 2.2; do
-  grep -R -E --include='Android.bp' -q "name:[[:space:]]*\"prebuilt_vendor\\.mediatek\\.hardware\\.bluetooth\\.audio@$version\"" "$SRC/vendor/oplus/zephyr" \
-    || die "Expected real vendor prebuilt module for Bluetooth audio $version was not found."
+  if ! grep -R -E --include='Android.bp' --include='Android.mk' --include='*.mk' -q \
+    "(name:[[:space:]]*\"prebuilt_vendor\\.mediatek\\.hardware\\.bluetooth\\.audio@$version\"|LOCAL_MODULE[[:space:]]*:?=[[:space:]]*(prebuilt_)?vendor\\.mediatek\\.hardware\\.bluetooth\\.audio@$version)" \
+    "$SRC/vendor/oplus/zephyr"; then
+    die "Expected real vendor Bluetooth audio $version module declaration was not found in Android.bp/Android.mk."
+  fi
 done
 
 mkdir -p "$SRC/vendor/custom/config"
@@ -224,12 +229,14 @@ print("Actual Android 17 libmnl source was patched to system-only.")
 PY
 
 for version in 2.1 2.2; do
-  if grep -R -E --include='Android.bp' -q "name:[[:space:]]*\"prebuilt_vendor\\.mediatek\\.hardware\\.bluetooth\\.audio@$version\"" "$SRC/vendor/oplus/zephyr"; then
+  if grep -R -E --include='Android.bp' --include='Android.mk' --include='*.mk' -q \
+    "(name:[[:space:]]*\"prebuilt_vendor\\.mediatek\\.hardware\\.bluetooth\\.audio@$version\"|LOCAL_MODULE[[:space:]]*:?=[[:space:]]*(prebuilt_)?vendor\\.mediatek\\.hardware\\.bluetooth\\.audio@$version)" \
+    "$SRC/vendor/oplus/zephyr"; then
     die "Duplicate vendor Bluetooth HIDL $version module remains after patch."
   fi
 done
-grep -R -q 'PIXEL_OS_ZEPHYR_ANDROID17_BT_HIDL_PREBUILT_FIX' "$SRC/vendor/oplus/zephyr" --include='Android.bp' \
-  || die "Bluetooth HIDL patch marker missing from actual vendor Android.bp files."
+grep -R -q 'PIXEL_OS_ZEPHYR_ANDROID17_BT_HIDL_PREBUILT_FIX' "$SRC/vendor/oplus/zephyr" --include='Android.bp' --include='Android.mk' --include='*.mk' \
+  || die "Bluetooth HIDL patch marker missing from actual vendor module files."
 echo "Both actual vendor HIDL prebuilts were removed; their proprietary blobs remain listed."
 
 bash "$ROOT/scripts/restore_before_sync.sh" "$SRC"
