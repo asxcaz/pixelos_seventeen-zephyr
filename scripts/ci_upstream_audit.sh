@@ -400,7 +400,7 @@ print("Actual Android 17 libmnl source was patched to system-only.")
 PY
 
 audit_hidl_vendor_overlap after
-if ! grep -R -q 'PIXEL_OS_ZEPHYR_ANDROID17_BT_HIDL_PREBUILT_FIX' "$SRC/vendor/oplus/zephyr" --include='Android.bp' --include='Android.mk' --include='*.mk'; then
+if ! grep -R -q 'PIXEL_OS_ZEPHYR_ANDROID17_MTK_HIDL_PREBUILT_FIX' "$SRC/vendor/oplus/zephyr" --include='Android.bp' --include='Android.mk' --include='*.mk'; then
   die "Bluetooth HIDL patch marker missing from actual vendor module files."
 fi
 echo "All six real source/vendor HIDL collisions were removed; all six proprietary blob entries remain intact."
