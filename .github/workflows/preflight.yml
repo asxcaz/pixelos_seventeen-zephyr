@@ -26,7 +26,7 @@ jobs:
   preflight:
     name: Lint scripts and test device setup
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 40
     steps:
       - name: Checkout build scripts
         uses: actions/checkout@v4
@@ -61,6 +61,10 @@ jobs:
       - name: Bash syntax and lightweight manifest/device tests
         shell: bash
         run: bash scripts/ci_precheck.sh
+
+      - name: Extended upstream compatibility audit
+        shell: bash
+        run: bash scripts/ci_upstream_audit.sh
 
       - name: Check patch whitespace
         shell: bash
