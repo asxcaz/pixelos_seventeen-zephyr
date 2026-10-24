@@ -119,31 +119,140 @@ PY
   git -C "$destination" checkout --force --quiet HEAD
 }
 
-has_vendor_hidl_module() {
-  python3 - "$SRC/vendor/oplus/zephyr" "$1" <<'PY'
+audit_hidl_vendor_overlap() {
+  python3 - "$SRC/hardware/mediatek" "$SRC/vendor/oplus/zephyr" "$1" <<'PY'
 from pathlib import Path
 import re
 import sys
 
-root = Path(sys.argv[1])
-version = re.escape(sys.argv[2])
-bp_pattern = re.compile(
-    r'(?m)^[ \t]*name:[ \t]*"(?:prebuilt_)?vendor\.mediatek\.hardware\.bluetooth\.audio@'
-    + version + r'"[ \t]*,?'
+hardware_root = Path(sys.argv[1])
+vendor_root = Path(sys.argv[2])
+mode = sys.argv[3]
+
+def brace_delta(line):
+    delta = 0
+    quoted = False
+    escaped = False
+    i = 0
+    while i < len(line):
+        char = line[i]
+        if quoted:
+            if escaped:
+                escaped = False
+            elif char == chr(92):
+                escaped = True
+            elif char == '"':
+                quoted = False
+        else:
+            if char == '"':
+                quoted = True
+            elif char == "/" and i + 1 < len(line) and line[i + 1] == "/":
+                break
+            elif char == "{":
+                delta += 1
+            elif char == "}":
+                delta -= 1
+        i += 1
+    return delta
+
+def blocks(path, start_pattern):
+    lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+    start_re = re.compile(start_pattern)
+    i = 0
+    while i < len(lines):
+        if not start_re.match(lines[i]):
+            i += 1
+            continue
+        start = i
+        depth = 0
+        end = None
+        for j in range(start, len(lines)):
+            depth += brace_delta(lines[j])
+            if depth == 0:
+                end = j
+                break
+        if end is None:
+            raise SystemExit(f"Unbalanced module block in {path}:{start + 1}")
+        yield start + 1, "".join(lines[start:end + 1])
+        i = end + 1
+
+source_modules = {}
+for path in hardware_root.rglob("Android.bp"):
+    try:
+        for line_no, block in blocks(path, r'^[ \t]*hidl_interface[ \t]*\{'):
+            name_match = re.search(r'(?m)^[ \t]*name:[ \t]*"([^"]+)"', block)
+            if not name_match:
+                continue
+            partition = "system_ext" if re.search(r'(?m)^[ \t]*system_ext_specific:[ \t]*true\b', block) else "system"
+            if re.search(r'(?m)^[ \t]*(?:vendor|soc_specific):[ \t]*true\b', block):
+                partition = "vendor"
+            if partition != "vendor":
+                source_modules[name_match.group(1)] = (partition, f"{path}:{line_no}")
+    except (OSError, UnicodeError):
+        continue
+
+vendor_declarations = {}
+bp_start = r'^[ \t]*(?:cc_prebuilt_library_shared|cc_prebuilt_library|cc_prebuilt_binary)[ \t]*\{'
+for path in vendor_root.rglob("Android.bp"):
+    try:
+        for line_no, block in blocks(path, bp_start):
+            name_match = re.search(r'(?m)^[ \t]*name:[ \t]*"([^"]+)"', block)
+            if not name_match:
+                continue
+            name = name_match.group(1)
+            normalized = name[len("prebuilt_"):] if name.startswith("prebuilt_") else name
+            vendor_declarations.setdefault(normalized, []).append(f"{path}:{line_no} (Android.bp {name})")
+    except (OSError, UnicodeError):
+        continue
+
+make_section_re = re.compile(
+    r'(?ims)^[ \t]*include[ \t]+\$\([ \t]*CLEAR_VARS[ \t]*\)[ \t]*\r?\n'
+    r'.*?^[ \t]*include[ \t]+\$\([ \t]*BUILD_[A-Z0-9_]+[ \t]*\)[ \t]*(?:#.*)?(?:\r?\n|$)'
 )
-mk_pattern = re.compile(
-    r'(?m)^[ \t]*LOCAL_MODULE[ \t]*:?=[ \t]*(?:prebuilt_)?vendor\.mediatek\.hardware\.bluetooth\.audio@'
-    + version + r'[ \t]*(?:#.*)?$'
-)
-files = set(root.rglob("Android.bp")) | set(root.rglob("Android.mk")) | set(root.rglob("*.mk"))
-for path in files:
+local_module_re = re.compile(r'(?m)^[ \t]*LOCAL_MODULE[ \t]*:?=[ \t]*(?:prebuilt_)?([A-Za-z0-9_.@+-]+)[ \t]*(?:#.*)?$')
+makefiles = set(vendor_root.rglob("Android.mk")) | set(vendor_root.rglob("*.mk"))
+for path in makefiles:
     try:
         text = path.read_text(encoding="utf-8")
     except (OSError, UnicodeError):
         continue
-    if bp_pattern.search(text) or mk_pattern.search(text):
-        raise SystemExit(0)
-raise SystemExit(1)
+    for section in make_section_re.finditer(text):
+        name_match = local_module_re.search(section.group(0))
+        if name_match:
+            vendor_declarations.setdefault(name_match.group(1), []).append(f"{path}:Android.mk")
+
+overlaps = {
+    name: locations
+    for name, locations in vendor_declarations.items()
+    if name in source_modules and source_modules[name][0] in {"system", "system_ext"}
+}
+expected = {
+    "vendor.mediatek.hardware.bluetooth.audio@2.1",
+    "vendor.mediatek.hardware.bluetooth.audio@2.2",
+}
+if mode == "before":
+    if set(overlaps) != expected:
+        details = [
+            f"{name}: source={source_modules[name][0]} at {source_modules[name][1]}; vendor={locations}"
+            for name, locations in sorted(overlaps.items())
+        ]
+        raise SystemExit(
+            "Unexpected source/vendor HIDL overlap inventory. "
+            f"Missing expected={sorted(expected - set(overlaps))}; "
+            f"extra possible conflicts={sorted(set(overlaps) - expected)}; details=" + " | ".join(details)
+        )
+    for name, locations in sorted(overlaps.items()):
+        print(f"Detected expected Soong partition collision: {name}; source={source_modules[name][0]} at {source_modules[name][1]}; vendor={locations}")
+elif mode == "after":
+    if overlaps:
+        details = [
+            f"{name}: source={source_modules[name][0]} at {source_modules[name][1]}; vendor={locations}"
+            for name, locations in sorted(overlaps.items())
+        ]
+        raise SystemExit("Unresolved source/vendor HIDL overlaps after patch: " + " | ".join(details))
+    print(f"No source HIDL/vendor prebuilt overlaps remain across {len(source_modules)} MediaTek HIDL modules.")
+else:
+    raise SystemExit(f"Unknown overlap audit mode: {mode}")
 PY
 }
 
@@ -214,12 +323,7 @@ grep -Fq 'vendor/lib64/vendor.mediatek.hardware.bluetooth.audio@2.1.so' "$SRC/de
   || die "Bluetooth audio 2.1 proprietary blob was not found in device file list."
 grep -Fq 'vendor/lib64/vendor.mediatek.hardware.bluetooth.audio@2.2.so' "$SRC/device/oplus/zephyr/proprietary-files.txt" \
   || die "Bluetooth audio 2.2 proprietary blob was not found in device file list."
-for version in 2.1 2.2; do
-  if ! has_vendor_hidl_module "$version"; then
-    die "Expected vendor Bluetooth audio $version module declaration was not found in actual Android.bp/Android.mk files."
-  fi
-  echo "Found actual vendor Bluetooth HIDL $version declaration."
-done
+audit_hidl_vendor_overlap before
 
 mkdir -p "$SRC/vendor/custom/config"
 touch "$SRC/vendor/custom/config/common_full_phone.mk"
@@ -246,11 +350,7 @@ if re.search(r'(?m)^[ \t]*vendor_available[ \t]*:[ \t]*true,[ \t]*$', body):
 print("Actual Android 17 libmnl source was patched to system-only.")
 PY
 
-for version in 2.1 2.2; do
-  if has_vendor_hidl_module "$version"; then
-    die "Duplicate vendor Bluetooth HIDL $version module remains after patch."
-  fi
-done
+audit_hidl_vendor_overlap after
 if ! grep -R -q 'PIXEL_OS_ZEPHYR_ANDROID17_BT_HIDL_PREBUILT_FIX' "$SRC/vendor/oplus/zephyr" --include='Android.bp' --include='Android.mk' --include='*.mk'; then
   die "Bluetooth HIDL patch marker missing from actual vendor module files."
 fi
